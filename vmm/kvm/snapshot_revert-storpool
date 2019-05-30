@@ -54,34 +54,9 @@ if boolTrue "$VMSNAPSHOT_OVERRIDE"; then
         vmVolumesMap["${disk%:*}"]="${disk##*:}"
     done
 
-        rCMD=$(cat <<EOF
-    #echo "$DOMAIN"
-    [ -f "/var/tmp/one/etc/vmm/kvm/kvmrc" ] && source "/var/tmp/one/etc/vmm/kvm/kvmrc" || source "/var/tmp/one/vmm/kvm/kvmrc"
-    deployment=\$(ls "${DS_PATH}/${VM_DS_ID}/${VM_ID}/deployment."* | tail -n 1)
-    trap 'virsh --connect '\$LIBVIRT_URI' create "'\$deployment'" 2>&1 >/dev/null ;\
-          logger -t vmm_sp_snapshot_revert_r "create '\$deployment' ret:$?:\$? \$(date +%s.%N) trap"' EXIT QUIT TERM KILL INT HUP
-    virsh --connect \$LIBVIRT_URI destroy "$DOMAIN" 2>&1 >/dev/null
-    logger -t vmm_sp_snapshot_revert_r "destroy $DOMAIN ret:\$? \$(date +%s.%N)"
-    ts=\$(date +%s)
-    while [ -d /proc/\$PPID ]; do
-        logger -t vmm_sp_snapshot_revert_r "\$(virsh --connect \$LIBVIRT_URI dominfo "'$DOMAIN'") \$(date +%s.%N)"
-        sleep .1
-        tt=\$(date +%s)
-        if [ \$((tt - ts)) -gt ${VMSNAPSHOT_REVERT_TIMEOUT} ]; then
-            logger -t vmm_sp_snapshot_revert_r "VMSNAPSHOT_REVERT_TIMEOUT=${VMSNAPSHOT_REVERT_TIMEOUT} seconds reached!"
-            break
-        fi
-    done
-    virsh --connect \$LIBVIRT_URI create "\$deployment" 2>&1 >/dev/null
-    logger -t vmm_sp_snapshot_revert_r "create "\$deployment" ret:\$? \$(date +%s.%N)"
-    logger -t vmm_sp_snapshot_revert_r \$(virsh --connect \$LIBVIRT_URI dominfo "$DOMAIN") \$(date +%s.%N)
-    #trap - EXIT QUIT TERM KILL INT HUP
-EOF
-)
-        trapAdd "trap - SIGTERM && kill -- -$$"
-        ssh "$VMHOST" "$rCMD" 2>/dev/null >/dev/null &
-        splog "VM $VM_ID host:$VMHOST DOMAIN_ID:$DOMAIN destroyed $(date +%s%N)"
-        sleep .5
+    ssh_exec_and_log "$VMHOST" "virsh --connect $LIBVIRT_URI destroy \"$DOMAIN\""
+    sleep 1
+    splog "VM $VM_ID host:$VMHOST DOMAIN_ID:$DOMAIN destroyed $(date +%s%N)"
 
     SP_TMP="SPTMP-$(date +%s)-$(mktemp --dry-run XXXXXXXX)"
     declare -a tmpVolumes snapList
@@ -128,26 +103,18 @@ EOF
         te=$(date +%s%N)
         splog "END snapshot $snap ($te dt:$((te-tb)))"
     done
-    finish=1
-    pids="$(jobs -p)"
-    if [ -n "$pids" ]; then
-         kill $pids
-         ret=$?
-         if boolTrue "$DEBUG_VMSNAPSHOT"; then
-             splog "kill $pids ($?)"
-         fi
-         if [ $ret -eq 0 ]; then
-             splog "VM $VM_ID host:$VMHOST DOMAIN_ID:$DOMAIN created $(date +%s%N)"
-             trapDel "trap - SIGTERM && kill -- -$$"
-         else
-             finish=0
-         fi
-    fi
-    if boolTrue "$finish"; then
-        for volume in ${tmpVolumes[@]}; do
-            storpoolVolumeDelete "$volume" "force" "snaps"
-        done
-    fi
+
+    for volume in ${tmpVolumes[@]}; do
+        storpoolVolumeDelete "$volume" "force" "snaps"
+    done
+    
+    splog "ssh $VMHOST kill -HUP"
+    nohup ssh "$VMHOST" "for i in {1..3};\
+                           do sleep 3;\
+                           kill -HUP \$(cat /tmp/one-collectd-client.pid);\
+                           logger -t x_sp_x \"\$i:hup \$(cat /tmp/one-collectd-client.pid) (\$?)\";\
+                         done" 2>/dev/null >/dev/null &
+
     splog "END VM_ID=$VM_ID VMHOST=$VMHOST SNAP_ID=$SNAP_ID"
     exit 0
 else
