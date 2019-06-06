@@ -354,143 +354,27 @@ function storpoolClientId()
     echo $result
 }
 
-function storpoolApi()
-{
-    if [ -z "$SP_API_HTTP_HOST" ]; then
-        if [ -x /usr/sbin/storpool_confget ]; then
-            eval `/usr/sbin/storpool_confget -S`
-        fi
-        if [ -z "$SP_API_HTTP_HOST" ]; then
-            splog "storpoolApi: ERROR! SP_API_HTTP_HOST is not set!"
-            return 1
-        fi
-    fi
-    if boolTrue "NO_PROXY_API";then
-        export NO_PROXY="${NO_PROXY:+${NO_PROXY},}$SP_API_HTTP_HOST"
-    fi
-    if boolTrue "DEBUG_SP_RUN_CMD_VERBOSE"; then
-        splog "SP_API_HTTP_HOST=$SP_API_HTTP_HOST SP_API_HTTP_PORT=$SP_API_HTTP_PORT SP_AUTH_TOKEN=${SP_AUTH_TOKEN:+available} ${NO_PROXY:+NO_PROXY=${NO_PROXY}}"
-    fi
-    curl -s -S -q -N -H "Authorization: Storpool v1:$SP_AUTH_TOKEN" \
-    --connect-timeout "${SP_API_CONNECT_TIMEOUT:-1}" \
-    --max-time "${3:-300}" ${2:+-d "$2"} \
-    "$SP_API_HTTP_HOST:${SP_API_HTTP_PORT:-81}/ctrl/1.0/$1" 2>/dev/null
-    splog "storpoolApi $1 $2 ret:$?"
-}
-
 function storpoolWrapper()
 {
 	local json= res= ret=
 	tmpErr="$(mktemp -t storpoolWrapper-XXXXXX)"
 	trapAdd "rm -f '$tmpErr'"
-	case "$1" in
-		groupSnapshot)
-			shift
-			while [ -n "$2" ]; do
-				[ -z "$json" ] || json+=","
-				json+="{\"volume\":\"$1\",\"name\":\"$2\"}"
-				shift 2
-			done
-			if [ -n "$json" ]; then
-				res="$(storpoolApi "VolumesGroupSnapshot" "{\"volumes\":[$json]}")"
-				ret=$?
-				if [ $ret -ne 0 ]; then
-					splog "API communication error:$res ($ret)"
-					return $ret
-				else
-					ok="$(echo "$res"|jq -r ".data|.ok" 2>&1)"
-					if [ "$ok" = "true" ]; then
-						if boolTrue "DEBUG_SP_RUN_CMD_VERBOSE"; then
-							splog "API response:$res"
-						fi
-					else
-						splog "API Error:$res info:$ok"
-						return 1
-					fi
-				fi
-			else
-				splog "storpoolWrapper: Error: Empty volume list!"
-				return 1
-			fi
-			;;
-		groupDetach)
-			shift
-			while [ -n "$2" ]; do
-				[ -z "$json" ] || json+=","
-				json+="{\"volume\":\"$1\",\"detach\":[$2],\"force\":true}"
-				shift 2
-			done
-			if [ -n "$json" ]; then
-				res="$(storpoolApi "VolumesReassignWait" "{\"reassign\":[$json]}")"
-				ret=$?
-				if [ $ret -ne 0 ]; then
-					splog "API communication error:$res ($ret)"
-					return $ret
-				else
-					ok="$(echo "$res"|jq -r ".data|.ok" 2>&1)"
-					if [ "$ok" = "true" ]; then
-						if boolTrue "DEBUG_SP_RUN_CMD_VERBOSE"; then
-							splog "API response:$res"
-						fi
-					else
-						splog "API Error:$res info:$ok"
-						return 1
-					fi
-				fi
-			else
-				splog "storpoolWrapper: Error: Empty volume list!"
-				return 1
-			fi
-			;;
-		-P)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		--json)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		VolumeGetInfo)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		VolumeDelete)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		VolumeCreate)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		VolumeUpdate)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		VolumesList)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		SnapshotDelete)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-		SnapshotsList)
-			storpool_req "$@" 2>"$tmpErr"
-			;;
-                AttachmentsList)
-                        storpool_req "$@" 2>"$tmpErr"
-                        ;;
-		*)
-			storpool -B "$@" 2>"$tmpErr"
-			;;
-	esac
-        ret=$?
-        splog "($ret) storpool_req $*"
+	storpool_req "$@" 2>"$tmpErr"
+    ret=$?
+    splog "($ret) storpool_req $*"
 	if [ $ret -ne 0 ]; then
-		if [ -f "$tmpErr" ]; then
-			if  [ -s "$tmpErr" ]; then
-				local l=
-				while read -u 5 l; do
-					splog "ERR($ret): $l"
-				done 5< <(cat "$tmpErr")
-			fi
-		fi
-	fi
+            if [ -f "$tmpErr" ]; then
+                if [ -s "$tmpErr" ]; then
+                    local l=
+                    while read -u 5 l; do
+                        splog "ERR($ret): $l"
+                    done 5< <(cat "$tmpErr")
+                fi
+            fi
+        fi
 	rm -rf "$tmpErr"
 	trapDel "rm -f '$tmpErr'"
-        return $ret
+    return $ret
 }
 
 function storpoolRetry() {
@@ -724,7 +608,10 @@ function storpoolSnapshotInfo()
 
 function storpoolSnapshotCreate()
 {
-    storpoolRetry --json "{\"deleteAfter\":null,\"name\":\"$1\"}" -P VolumeSnapshot "$2" >/dev/null
+    local json="\"name\":\"$1\""
+    [ -z "$3" ] || json+=",\"deleteAfter\":\"$3\""
+    [ -z "$4" ] || json+=",\"tags\":{\"${VM_TAG:-nvm}\":\"$4\"}"
+    storpoolRetry --json "{$json}" -P VolumeSnapshot "$2" >/dev/null
 }
 
 function storpoolSnapshotDelete()
