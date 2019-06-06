@@ -467,10 +467,16 @@ function storpoolWrapper()
 		SnapshotsList)
 			storpool_req "$@"
 			;;
+                AttachmentsList)
+                        storpool_req "$@"
+                        ;;
 		*)
 			storpool -B "$@"
 			;;
 	esac
+        ret=$?
+        splog "($ret) storpool_req $*"
+        return $ret
 }
 
 function storpoolRetry() {
@@ -624,7 +630,7 @@ function storpoolVolumeAttach()
 
 function storpoolVolumeDetach()
 {
-    local _SP_VOL="$1" _FORCE="$2" _SP_HOST="$3" _DETACH_ALL="$4" _SOFT_FAIL="$5" _VOLUMES_GROUP="$6"
+    local _SP_VOL="$1" _FORCE="$2" _SP_HOST="${3:-$(hostname)}" _DETACH_ALL="$4" _SOFT_FAIL="$5" _VOLUMES_GROUP="$6"
     local _SP_CLIENT volume client
     if boolTrue "DEBUG_storpoolVolumeDetach"; then
         splog "storpoolVolumeDetach(_SP_VOL=$1 _FORCE=$2 _SP_HOST=$3 _DETACH_ALL=$4 _SOFT_FAIL=$5 _VOLUMES_GROUP=$6)"
@@ -632,25 +638,24 @@ function storpoolVolumeDetach()
     if [ "$_DETACH_ALL" = "all" ] && [ -z "$_VOLUMES_GROUP" ] ; then
         _SP_CLIENT="all"
     else
-        if [ -n "$_SP_HOST" ]; then
-            _SP_CLIENT="$(storpoolClientId "$_SP_HOST" "$COMMON_DOMAIN")"
-            if [ "$_SP_CLIENT" = "" ]; then
-                splog "Error: Can't get SP_OURID for host $_SP_HOST"
-                exit -1
-            fi
+        _SP_CLIENT="$(storpoolClientId "$_SP_HOST" "$COMMON_DOMAIN")"
+        if [ "$_SP_CLIENT" = "" ]; then
+            splog "Error: Can't get SP_OURID for host $_SP_HOST"
+            exit -1
         fi
     fi
     if [ -n "$_VOLUMES_GROUP" ] && [ -n "$_SP_CLIENT" ]; then
-        local vList=
         for volume in $_VOLUMES_GROUP; do
-            vList+="$volume $_SP_CLIENT "
+            [ -z "$json" ] || json+=","
+            json+="{\"volume\":\"$volume\",\"detach\":[\"$_SP_CLIENT\"],\"force\":true}"
         done
-        storpoolRetry groupDetach $vList
+        storpoolRetry --json "{\"readdign\":[$json]}" -P VolumesReassignWait >/dev/null
         splog "detachGroup $_VOLUMES_GROUP client:$_SP_CLIENT ($?)"
     fi
     if [ "$_DETACH_ALL" = "all" ]; then
         _SP_CLIENT="all"
     fi
+    local clients=
     while IFS=',' read volume client snapshot; do
         if boolTrue "_SOFT_FAIL" "_SOFT_FAIL"; then
             _FORCE=
@@ -664,20 +669,23 @@ function storpoolVolumeDetach()
         client="${client//\"/}"
         case "$_SP_CLIENT" in
             all)
-                storpoolRetry detach $type "$volume" all ${_FORCE:+force yes} >/dev/null
-                break
-                ;;
-             '')
-                storpoolRetry detach $type "$volume" here ${_FORCE:+force yes} >/dev/null
+                json="{\"$type\":\"$volume\",\"detach\":\"all\"${_FORCE:+,\"force\":true}}"
                 break
                 ;;
               *)
                 if [ "$_SP_CLIENT" = "$client" ]; then
-                    storpoolRetry detach $type "$volume" client "$client" ${_FORCE:+force yes} >/dev/null
+                    [ -z "$clients" ] || clients+=","
+                    clients+="\"$client\""
                 fi
                 ;;
         esac
-    done < <(storpoolRetry -j attach list|jq -r ".data|map(select(.volume==\"${_SP_VOL}\"))|.[]|[.volume,.client,.snapshot]|@csv")
+    done < <(storpoolRetry AttachmentsList | jq -r "map(select(.volume==\"${_SP_VOL}\"))|.[]|[.volume,.client,.snapshot]|@csv")
+    if [ -n "$clients" ]; then
+        json="{\"$type\":\"${_SP_VOL}\",\"detach\":[$clients]${_FORCE:+,\"force\":true}}"
+    fi
+    if [ -n "$json" ]; then
+        storpoolRetry volumesReassignWait "{\"reassign\":[$json]}" >/dev/null
+    fi
 }
 
 function storpoolVolumeTemplate()
