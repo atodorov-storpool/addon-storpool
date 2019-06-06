@@ -381,6 +381,8 @@ function storpoolApi()
 function storpoolWrapper()
 {
 	local json= res= ret=
+	tmpErr="$(mktemp -t storpoolWrapper-XXXXXX)"
+	trapAdd "rm -f '$tmpErr'"
 	case "$1" in
 		groupSnapshot)
 			shift
@@ -441,41 +443,53 @@ function storpoolWrapper()
 			fi
 			;;
 		-P)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		--json)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		VolumeGetInfo)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		VolumeDelete)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		VolumeCreate)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		VolumeUpdate)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		VolumesList)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		SnapshotDelete)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
 		SnapshotsList)
-			storpool_req "$@"
+			storpool_req "$@" 2>"$tmpErr"
 			;;
                 AttachmentsList)
-                        storpool_req "$@"
+                        storpool_req "$@" 2>"$tmpErr"
                         ;;
 		*)
-			storpool -B "$@"
+			storpool -B "$@" 2>"$tmpErr"
 			;;
 	esac
         ret=$?
         splog "($ret) storpool_req $*"
+	if [ $ret -ne 0 ]; then
+		if [ -f "$tmpErr" ]; then
+			if  [ -s "$tmpErr" ]; then
+				local l=
+				while read -u 5 l; do
+					splog "ERR($ret): $l"
+				done 5< <(cat "$tmpErr")
+			fi
+		fi
+	fi
+	rm -rf "$tmpErr"
+	trapDel "rm -f '$tmpErr'"
         return $ret
 }
 
@@ -490,10 +504,17 @@ function storpoolRetry() {
             fi
         fi
     fi
-    t=${STORPOOL_RETRIES:-10}
+    local t=${STORPOOL_RETRIES:-10} ret=
     while true; do
         if storpoolWrapper "$@"; then
+            ret=$?
             break
+        else
+            ret=$?
+            if [ $ret -eq 3 ]; then
+                splog "objectDoesNotExist: $*"
+                break
+            fi
         fi
         if boolTrue "_SOFT_FAIL"; then
             splog "storpool $* SOFT_FAIL"
@@ -501,12 +522,13 @@ function storpoolRetry() {
         fi
         t=$((t - 1))
         if [ "$t" -lt 1 ]; then
-            splog "storpool $* FAILED ($t::$?)"
-            exit 1
+            splog "storpool $* FAILED ($t::$ret)"
+            exit $ret
         fi
         sleep .1
-        splog "retry $t storpool $*"
+        splog "retry $t args:$*"
     done
+    return $ret
 }
 
 function storpoolTemplate()
