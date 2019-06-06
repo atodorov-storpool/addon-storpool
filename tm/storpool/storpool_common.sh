@@ -612,18 +612,14 @@ function storpoolVolumeResize()
 
 function storpoolVolumeAttach()
 {
-    local _SP_VOL="$1" _SP_HOST="$2" _SP_MODE="${3:-rw}" _SP_TARGET="${4:-volume}"
-    local _SP_CLIENT
-    if [ -n "$_SP_HOST" ]; then
-        _SP_CLIENT="$(storpoolClientId "$_SP_HOST" "$COMMON_DOMAIN")"
-        if [ -n "$_SP_CLIENT" ]; then
-           _SP_CLIENT="client $_SP_CLIENT"
-        else
-            splog "Error: Can't get remote CLIENT_ID from $_SP_HOST"
-            exit -1
-        fi
+    local _SP_VOL="$1" _SP_HOST="${2:-$(hostname)}" _SP_MODE="${3:-rw}" _SP_TARGET="${4:-volume}"
+    local _SP_CLIENT="$(storpoolClientId "$_SP_HOST" "$COMMON_DOMAIN")"
+    if [ -n "$_SP_CLIENT" ]; then
+        storpoolRetry --json "{\"reassign\":[{\"$_SP_TARGET\":\"$_SP_VOL\",\"$_SP_MODE\":[\"$_SP_SLIENT\"]}]}" -P VolumesReassignWait >/dev/null
+    else
+        splog "Error: Can't get CLIENT_ID for $_SP_HOST"
+        exit -1
     fi
-    storpoolRetry attach ${_SP_TARGET} "$_SP_VOL" ${_SP_MODE:+mode "$_SP_MODE"} ${_SP_CLIENT:-here} >/dev/null
 }
 
 function storpoolVolumeDetach()
