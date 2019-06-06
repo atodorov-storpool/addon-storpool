@@ -512,7 +512,6 @@ function storpoolRetry() {
         else
             ret=$?
             if [ $ret -eq 3 ]; then
-                splog "objectDoesNotExist: $*"
                 break
             fi
         fi
