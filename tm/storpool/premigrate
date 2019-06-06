@@ -127,7 +127,7 @@ for i in ${!DISK_ID_ARRAY[@]}; do
                 SP_VOL+="-${VM_ID}-${DISK_ID_ARRAY[i]}"
             elif [ "${DISK_TYPE_ARRAY[i]}" = "CDROM" ]; then
                 CDROM_VOL="${SP_VOL}-${VM_ID}-${DISK_ID}"
-                if ! storpoolVolumeExists "$CDROM_VOL"; then
+                if ! storpoolVolumeInfo "$CDROM_VOL"; then
                     storpoolVolumeClone "$SP_VOL" "$CDROM_VOL" "$SP_TEMPLATE"
                     storpoolVolumeTag "$CDROM_VOL" "CDROM" "type"
                 fi

@@ -125,7 +125,7 @@ SP_VOL="${ONE_PX}-sys-${VM_ID}-${DISK_ID}-iso"
 SP_LINK="/dev/storpool/$SP_VOL"
 SP_TEMPLATE="${ONE_PX}-ds-$DS_ID"
 
-if storpoolVolumeExists "$SP_VOL"; then
+if storpoolVolumeInfo "$SP_VOL"; then
     storpoolVolumeResize "$SP_VOL" "$SP_SIZE" "shrinkOk"
     storpoolTemplate "$SP_TEMPLATE"
 else

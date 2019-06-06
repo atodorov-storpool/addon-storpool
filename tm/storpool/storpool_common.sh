@@ -516,16 +516,7 @@ function storpoolVolumeInfo()
     if boolTrue "DEBUG_storpoolVolumeInfo"; then
         splog "storpoolVolumeInfo($_SP_VOL) size:$V_SIZE parentName:$V_PARENT_NAME templateName:$V_TEMPLATE_NAME tags.type:$V_TYPE"
     fi
-}
-
-function storpoolVolumeExists()
-{
-    local _SP_VOL="$1" _RET=1
-    if [ -n "$(storpoolRetry -j volume list | jq -r ".data[]|select(.name == \"$_SP_VOL\")")" ]; then #"
-        _RET=0
-    fi
-    #splog "storpoolVolumeExists($_SP_VOL): $_RET"
-    return ${_RET}
+    [ -n "$V_SIZE" ]
 }
 
 function storpoolVolumeCreate()
@@ -556,7 +547,7 @@ function storpoolVolumeSnapshotsDelete()
 function storpoolVolumeDelete()
 {
     local _SP_VOL="$1" _FORCE="$2" _SNAPSHOTS="$3" _REMOTE_LOCATION="$4"
-    if storpoolVolumeExists "$_SP_VOL"; then
+    if storpoolVolumeInfo "$_SP_VOL"; then
 
         storpoolVolumeDetach "$_SP_VOL" "$_FORCE" "" "all"
 
@@ -854,7 +845,7 @@ EOF
     fi
     splog "checkpoint_size=${file_size} volume_size=${volume_size}M"
 
-    if storpoolVolumeExists "$volume"; then
+    if storpoolVolumeInfo "$volume"; then
         storpoolVolumeDelete "$volume" "force"
     fi
 
@@ -902,7 +893,7 @@ function oneCheckpointRestore()
     fi
 EOF
 )
-    if storpoolVolumeExists "$volume"; then
+    if storpoolVolumeInfo "$volume"; then
         storpoolVolumeAttach "$volume" "${_host}"
 
         trapAdd "storpoolVolumeDetach \"$volume\" \"force\" \"${_host}\" \"all\""
