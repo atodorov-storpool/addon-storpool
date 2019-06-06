@@ -678,8 +678,8 @@ function storpoolVolumeDetach()
         _SP_CLIENT="all"
     fi
     local clients=
-    while IFS=',' read volume client snapshot; do
-        if boolTrue "_SOFT_FAIL" "_SOFT_FAIL"; then
+    while IFS=',' read -u 5 volume client snapshot; do
+        if boolTrue "_SOFT_FAIL"; then
             _FORCE=
         fi
         if [ $snapshot = "true" ]; then
@@ -701,7 +701,7 @@ function storpoolVolumeDetach()
                 fi
                 ;;
         esac
-    done < <(storpoolRetry AttachmentsList | jq -r "map(select(.volume==\"${_SP_VOL}\"))|.[]|[.volume,.client,.snapshot]|@csv")
+    done 5< <(storpoolRetry AttachmentsList | jq -r "map(select(.volume==\"${_SP_VOL}\"))|.[]|[.volume,.client,.snapshot]|@csv")
     if [ -n "$clients" ]; then
         json="{\"$type\":\"${_SP_VOL}\",\"detach\":[$clients]${_FORCE:+,\"force\":true}}"
     fi
