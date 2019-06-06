@@ -29,35 +29,35 @@ ONE_HOME="${ONE_HOME:-/var/lib/one}"
 
 # datastores stats
 SP_TEMPLATE_STATUS_JSON="storpool_template_status.json"
-SP_TEMPLATE_STATUS_RUN="storpool -j template status"
+SP_TEMPLATE_STATUS_RUN="storpool_req VolumeTemplatesStatus"
 SP_TEMPLATE_STATUS_MINUTES=60
 
 # VM disks stats
 SP_VOLUME_SPACE_JSON="storpool_volume_usedSpace.json"
-SP_VOLUME_SPACE_RUN="storpool -j volume usedSpace"
+SP_VOLUME_SPACE_RUN="storpool_req VolumeSpace"
 SP_VOLUME_SPACE_MINUTES=60
 
 # VM disks snapshots stats
 SP_SNAPSHOT_SPACE_JSON="storpool_snapshot_space.json"
-SP_SNAPSHOT_SPACE_RUN="storpool -j snapshot space"
+SP_SNAPSHOT_SPACE_RUN="storpool_req SnapshotsSpace"
 SP_SNAPSHOT_SPACE_MINUTES=65
 
 # Disabled by default
 # volume status
 SP_VOLUME_STATUS_JSON="storpool_volume_status.json"
-#SP_VOLUME_STATUS_RUN="storpool -j volume status"
+#SP_VOLUME_STATUS_RUN="storpool_req VolumesGetStatus"
 SP_VOLUME_STATUS_MINUTES=5
 
 # Disabled by default
 # volume list
 SP_VOLUME_LIST_JSON="storpool_volume_list.json"
-#SP_VOLUME_LIST_RUN="storpool -j volume list"
+#SP_VOLUME_LIST_RUN="storpool_req VolumesList"
 SP_VOLUME_LIST_MINUTES=1
 
 # Disabled by default
 # snapshot list
 SP_SNAPSHOT_LIST_JSON="storpool_snapshot_list.json"
-#SP_SNAPSHOT_LIST_RUN="storpool -j snapshot list"
+#SP_SNAPSHOT_LIST_RUN="storpool_req SnapshotsList"
 SP_SNAPSHOT_LIST_MINUTES=1
 
 # Do sync to remote hosts
@@ -305,6 +305,7 @@ for i in ${!DS_ID_ARRAY[@]}; do
 	[ "${DS_TM_MAD_ARRAY[i]}" = "storpool" ] || continue
 	
 	cmd=
+	json=
 	comment=
 	DS_ID=${DS_ID_ARRAY[i]}
 	template_name="${ONE_PX}-ds-${DS_ID}"
@@ -343,7 +344,7 @@ for i in ${!DS_ID_ARRAY[@]}; do
 	# create/update the template in StorPool
 	# or update ONE datastore
 	
-	tmp="$(storpool -B -j template list 2>"$tmpDir/error.log"| jq -r ".data|map(select(.name==\"$template_name\"))|.[]|[.replication,.placeAll,.placeTail,.iops,.bw,.placeHead]|@csv")" #"
+	tmp="$(storpool_req VolumesTemplatesList 2>"$tmpDir/error.log"| jq -r ".data|map(select(.name==\"$template_name\"))|.[]|[.replication,.placeAll,.placeTail,.iops,.bw,.placeHead]|@csv")" #"
 	ret=$?
 	if [ -z "$tmp" ]; then
 		if [ $ret -ne 0 ] && [ -s "$tmpDir/error.log" ]; then
@@ -367,6 +368,8 @@ for i in ${!DS_ID_ARRAY[@]}; do
 		if boolTrue "AUTO_TEMPLATE"; then
 			if [ -n "${new:-3}" ]; then
 				cmd+="replication $new "
+                                [ -z "$json" ] || json+=","
+				json+="\"replication\":$new"
 				comment+=" replication:$old"
 			fi
 		else
@@ -382,6 +385,8 @@ for i in ${!DS_ID_ARRAY[@]}; do
 		if boolTrue "AUTO_TEMPLATE"; then
 			if [ -n "$new" ]; then
 				cmd+="placeAll $new "
+				[ -z "$json" ] || json+=","
+				json+="\"placeAll\":\"$new\""
 				comment+=" placeAll:$old"
 			fi
 		else
@@ -397,6 +402,8 @@ for i in ${!DS_ID_ARRAY[@]}; do
 		if boolTrue "AUTO_TEMPLATE"; then
 			if [ -n "$new" ]; then
 				cmd+="placeTail $new "
+				[ -z "$json" ] || json+=","
+				json+="\"placeTail\":\"$new\""
 				comment+=" placeTail:$old"
 			fi
 		else
@@ -412,6 +419,8 @@ for i in ${!DS_ID_ARRAY[@]}; do
 		if boolTrue "AUTO_TEMPLATE"; then
 			if [ -n "$new" ]; then
 				cmd+="iops $new "
+				[ -z "$json" ] || json+=","
+				[ "$new" = "-" ] && json+="\"iops\":\"-\"" || json+="\"iops\":$new"
 				comment+=" iops:$old"
 			fi
 		else
@@ -427,6 +436,8 @@ for i in ${!DS_ID_ARRAY[@]}; do
 		if boolTrue "AUTO_TEMPLATE"; then
 			if [ -n "$new" ]; then
 				cmd+="bw $new "
+				[ -z "$json" ] || json+=","
+				[ "$new" = "-" ] && json+="\"bw\":\"-\"" || json+="\"bw\":$new"
 				comment+=" bw:$old"
 			fi
 		else
@@ -442,6 +453,8 @@ for i in ${!DS_ID_ARRAY[@]}; do
 		if boolTrue "AUTO_TEMPLATE"; then
 			if [ -n "$new" ]; then
 				cmd+="placeHead $new "
+				[ -z "$json" ] || json+=","
+				json+="\"placeHead\":\"$new\""
 				comment+=" placeHead:$old"
 			fi
 		else
@@ -460,10 +473,15 @@ for i in ${!DS_ID_ARRAY[@]}; do
 	
 	if boolTrue "AUTO_TEMPLATE"; then
 		if [ -n "$cmd" ]; then
-			storpool -B template "$template_name" $cmd
+                        storpool_req --json "{$json}" -P VolumeTemplateUpdate "$template_name"
+                        ret=$?
+                        if [ $ret -ne 0 ]; then
+				storpool_req --json "{\"name\":\"$template_name\",$json}" -P VolumeTemplateCreate
+				ret=$?
+                        fi
 			splog "($?) template $template_name $cmd OLD:$comment API:$SP_API_HTTP_HOST"
 			if boolTrue "SP_TEMPLATE_PROPAGATE"; then
-				storpool -B template "$template_name" propagate 2>&1 >/dev/null
+				storpool_req --json "{\"propagate\":true}" -P VolumeTemplateUpdate "$template_name"
 				splog "($?) template $template_name propagate"
 			fi
 		fi
