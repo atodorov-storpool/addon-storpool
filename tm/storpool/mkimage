@@ -118,7 +118,7 @@ if [ "${FSTYPE,,}" != "raw" ]; then
         ssh_exec_and_log "$R_HOST" "$MKFS_CMD" \
            "Error running $MKFS_CMD on $R_HOST"
     else
-        storpoolVolumeAttach "$SP_VOL"
+        storpoolVolumeAttach "$SP_VOL" "$(hostname)"
 
         splog "run $MKFS_CMD"
         exec_and_log "$MKFS_CMD" \
