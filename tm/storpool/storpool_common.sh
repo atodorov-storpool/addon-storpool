@@ -440,6 +440,33 @@ function storpoolWrapper()
 				return 1
 			fi
 			;;
+		-P)
+			storpool_req "$@"
+			;;
+		--json)
+			storpool_req "$@"
+			;;
+		VolumeGetInfo)
+			storpool_req "$@"
+			;;
+		VolumeDelete)
+			storpool_req "$@"
+			;;
+		VolumeCreate)
+			storpool_req "$@"
+			;;
+		VolumeUpdate)
+			storpool_req "$@"
+			;;
+		VolumesList)
+			storpool_req "$@"
+			;;
+		SnapshotDelete)
+			storpool_req "$@"
+			;;
+		SnapshotsList)
+			storpool_req "$@"
+			;;
 		*)
 			storpool -B "$@"
 			;;
@@ -512,7 +539,7 @@ function storpoolVolumeInfo()
         V_TEMPLATE_NAME="${V_TEMPLATE_NAME//\"/}"
         V_TYPE="${V_TYPE//\"/}"
         break
-    done 5< <(storpoolRetry -j volume "$_SP_VOL" info|jq -r ".data|[.size,.parentName,.templateName,.tags.type]|@csv")
+    done 5< <(storpoolRetry VolumeGetInfo "$_SP_VOL"|jq -r ".data|[.size,.parentName,.templateName,.tags.type]|@csv")
     if boolTrue "DEBUG_storpoolVolumeInfo"; then
         splog "storpoolVolumeInfo($_SP_VOL) size:$V_SIZE parentName:$V_PARENT_NAME templateName:$V_TEMPLATE_NAME tags.type:$V_TYPE"
     fi
@@ -521,8 +548,7 @@ function storpoolVolumeInfo()
 
 function storpoolVolumeCreate()
 {
-    local _SP_VOL="$1" _SP_SIZE="$2" _SP_TEMPLATE="$3"
-    storpoolRetry volume "$_SP_VOL" size "${_SP_SIZE}" ${_SP_TEMPLATE:+template "$_SP_TEMPLATE"} >/dev/null
+    storpoolRetry --json "{\"name\":\"$1\",\"size\":\"$2\"${3:+,\"template\":\"$3\"}}" -P VolumeCreate >/dev/null
 }
 
 function storpoolVolumeStartswith()
@@ -530,14 +556,13 @@ function storpoolVolumeStartswith()
     local _SP_VOL="$1" vName
     while read vName; do
         echo "${vName//\"/}"
-    done < <(storpoolRetry -j volume list | jq -r ".data|map(select(.name|startswith(\"${_SP_VOL}\")))|.[]|[.name]|@csv")
+    done < <(storpoolRetry VolumesList | jq -r ".data|map(select(.name|startswith(\"${_SP_VOL}\")))|.[]|[.name]|@csv")
 }
 
 function storpoolVolumeSnapshotsDelete()
 {
-    local _SP_VOL_SNAPSHOTS="$1"
-    storpoolRetry -j snapshot list | \
-        jq -r ".data|map(select(.name|contains(\"${_SP_VOL_SNAPSHOTS}\")))|.[]|[.name]|@csv" | \
+    storpoolRetry SnapshotsList | \
+        jq -r ".data|map(select(.name|contains(\"$1\")))|.[]|[.name]|@csv" | \
         while read name; do
             name="${name//\"/}"
             storpoolSnapshotDelete "$name"
@@ -561,7 +586,7 @@ function storpoolVolumeDelete()
 				return $?
 			fi
 		fi
-		storpoolRetry volume "$_SP_VOL" delete "$_SP_VOL" >/dev/null
+        storpoolRetry -P VolumeDelete "$_SP_VOL" >/dev/null
     else
         splog "volume $_SP_VOL not found "
     fi
@@ -572,22 +597,17 @@ function storpoolVolumeDelete()
 
 function storpoolVolumeRename()
 {
-    local _SP_OLD="$1" _SP_NEW="$2" _SP_TEMPLATE="$3" _SP_TAG="$4"
-    storpoolRetry volume "$_SP_OLD" rename "$_SP_NEW" ${_SP_TEMPLATE:+template "$_SP_TEMPLATE"} >/dev/null
+    storpoolRetry --json "{\"rename\":\"$2\"${3:+,\"template\":\"$3\"}\"}" -P VolumeUpdate "$1" >/dev/null
 }
 
 function storpoolVolumeClone()
 {
-    local _SP_PARENT="$1" _SP_VOL="$2" _SP_TEMPLATE="$3"
-
-    storpoolRetry volume "$_SP_VOL" baseOn "$_SP_PARENT" ${_SP_TEMPLATE:+template "$_SP_TEMPLATE"} >/dev/null
+    storpoolRetry --json "{\"name\":\"$2\",\"baseOn\":\"$1\"${3:+,\"template\":\"$3\"}}" -P VolumeCreate >/dev/null
 }
 
 function storpoolVolumeResize()
 {
-    local _SP_VOL="$1" _SP_SIZE="$2" _SP_SHRINKOK="$3"
-
-    storpoolRetry volume "$_SP_VOL" size "${_SP_SIZE}"${_SP_SHRINKOK:+ shrinkOk} >/dev/null
+    storpoolRetry --json "{\"size\":${2}${3:+,\"shrinkOk\":true}}" -P VolumeUpdate "$1" >/dev/null
 }
 
 function storpoolVolumeAttach()
@@ -666,8 +686,7 @@ function storpoolVolumeDetach()
 
 function storpoolVolumeTemplate()
 {
-    local _SP_VOL="$1" _SP_TEMPLATE="$2"
-    storpoolRetry volume "$_SP_VOL" template "$_SP_TEMPLATE" >/dev/null
+    storpoolRetry --json "{\"template\":\"$2\"}" -P VolumeUpdate "$1" >/dev/null
 }
 
 function storpoolSnapshotInfo()
@@ -680,23 +699,17 @@ function storpoolSnapshotInfo()
 
 function storpoolSnapshotCreate()
 {
-    local _SP_SNAPSHOT="$1" _SP_VOL="$2"
-
-    storpoolRetry volume "$_SP_VOL" snapshot "$_SP_SNAPSHOT" >/dev/null
+    storpoolRetry --json "{\"deleteAfter\":null,\"name\":\"$1\"}" -P VolumeSnapshot "$2" >/dev/null
 }
 
 function storpoolSnapshotDelete()
 {
-    local _SP_SNAPSHOT="$1"
-
-    storpoolRetry snapshot "$_SP_SNAPSHOT" delete "$_SP_SNAPSHOT" >/dev/null
+    storpoolRetry -P SnapshotDelete "$1" >/dev/null
 }
 
 function storpoolSnapshotClone()
 {
-    local _SP_SNAP="$1" _SP_VOL="$2" _SP_TEMPLATE="$3"
-
-    storpoolRetry volume "$_SP_VOL" parent "$_SP_SNAP" ${_SP_TEMPLATE:+template "$_SP_TEMPLATE"} >/dev/null
+    storpoolRetry --json "{\"name\":\"$2\",\"parent\":\"$1\"${3:+,\"template\":\"$3\"}}" -P VolumeCreate >/dev/null
 }
 
 function storpoolSnapshotRevert()
@@ -704,9 +717,9 @@ function storpoolSnapshotRevert()
     local _SP_SNAPSHOT="$1" _SP_VOL="$2" _SP_TEMPLATE="$3"
     local _SP_TMP="$(date +%s)-$(mktemp --dry-run XXXXXXXX)"
 
-    storpoolRetry volume "$_SP_VOL" rename "${_SP_VOL}-${_SP_TMP}" >/dev/null
+    storpoolVolumeRename "$_SP_VOL" "${_SP_VOL}-$_SP_TMP"
 
-    trapAdd "storpool volume \"$_SP_TMP\" rename \"$_SP_VOL\""
+    trapAdd "storpoolVolumeRename \"${_SP_VOL}-$SP_TMP\" \"$_SP_VOL\""
 
     storpoolSnapshotClone "$_SP_SNAPSHOT" "$_SP_VOL" "$_SP_TEMPLATE"
 
@@ -717,9 +730,9 @@ function storpoolSnapshotRevert()
 
 function storpoolVolumeTag()
 {
-    local _SP_VOL="$1" _TAG_VAL="$2" _VM_TAG="${3:-$VM_TAG}"
+    local _VM_TAG="${3:-$VM_TAG}"
     if [ -n "${_VM_TAG}" ]; then
-        storpoolRetry volume "$_SP_VOL" tag "${_VM_TAG}"="$_TAG_VAL" >/dev/null
+        storpoolRetry --json "{\"tags\":{\"$_VM_TAG\":\"$2\"}}" -P VolumeUpdate "$1" >/dev/null
     fi
 }
 
@@ -838,18 +851,17 @@ EOF
     local file_size=$($SSH "$_host" "du -b \"$checkpoint\" | cut -f 1")
     if [ -n "$file_size" ]; then
         local volume_size=$(( (file_size *2 +511) /512 *512 ))
-        volume_size=$((volume_size/1024/1024))
     else
         splog "Checkpoint file not found! $checkpoint"
         return 0
     fi
-    splog "checkpoint_size=${file_size} volume_size=${volume_size}M"
+    splog "checkpoint_size=${file_size} volume_size=${volume_size}"
 
     if storpoolVolumeInfo "$volume"; then
         storpoolVolumeDelete "$volume" "force"
     fi
 
-    storpoolVolumeCreate "$volume" "$volume_size"M "$template"
+    storpoolVolumeCreate "$volume" "$volume_size" "$template"
 
     trapAdd "storpoolVolumeDelete \"$volume\" \"force\""
 

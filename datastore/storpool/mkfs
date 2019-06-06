@@ -104,7 +104,7 @@ esac
 
 storpoolTemplate "$SP_TEMPLATE"
 
-storpoolVolumeCreate "$SP_VOL" "${SIZE}"M "$SP_TEMPLATE"
+storpoolVolumeCreate "$SP_VOL" "$((SIZE*1024**2))" "$SP_TEMPLATE"
 
 if [ "$FSTYPE" = "raw" ]; then
     splog "created raw image $SP_VOL"

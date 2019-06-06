@@ -132,7 +132,7 @@ if [ "$SRC_DS_ID" -ne "$DATASTORE_ID" ]; then
 
         #create DST volume with the given SIZE
         storpoolTemplate "${ONE_PX}-ds-${DATASTORE_ID}"
-        storpoolVolumeCreate "$SP_VOL" "${SIZE}"M "${ONE_PX}-ds-${DATASTORE_ID}"
+        storpoolVolumeCreate "$SP_VOL" "$((SIZE*1024**2))" "${ONE_PX}-ds-${DATASTORE_ID}"
         #attach DST volume to BRIDGE_LIST or here
         storpoolVolumeAttach "$SP_VOL" "$DST_SP_CLONE_GW"
 

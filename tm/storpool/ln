@@ -88,7 +88,7 @@ splog "SP_VOL=$SP_VOL SP_TEMPLATE=$SP_TEMPLATE"
 if [ -n "$SIZE" ]; then
     if [ $SIZE -gt ${ORIGINAL_SIZE:-0} ]; then
         if boolTrue "CLONE"; then
-            storpoolVolumeResize "$SP_VOL" "$SIZE"M
+            storpoolVolumeResize "$SP_VOL" "$((SIZE*1024**2))"
         else
             splog "not resizing Non-CLONED $SP_VOL SIZE=$SIZE ORIGINAL_SIZE=$ORIGINAL_SIZE"
         fi

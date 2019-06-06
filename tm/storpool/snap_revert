@@ -77,12 +77,12 @@ trapAdd "storpoolVolumeAttach \"$SP_VOL\" \"$SRC_HOST\""
 trapAdd "oneSymlink \"$SRC_HOST\" \"$SP_LINK\" \"$SRC_PATH\""
 
 storpoolVolumeInfo "$SP_VOL"
-OLD_SIZE_M=$((V_SIZE/1024/1024))
+OLD_SIZE=$V_SIZE
 
 storpoolSnapshotRevert "$SP_SNAP" "$SP_VOL" "$V_TEMPLATE_NAME"
 
 storpoolVolumeInfo "$SP_VOL"
-NEW_SIZE_M=$((V_SIZE/1024/1024))
+NEW_SIZE=$V_SIZE
 
 if [ $OLD_SIZE_M -ne $NEW_SIZE_M ]; then
     if boolTrue "UPDATE_ONE_DISK_SIZE"; then
@@ -98,9 +98,9 @@ if [ $OLD_SIZE_M -ne $NEW_SIZE_M ]; then
         else
             splog "vmVolumesMap[$volume] not found"
         fi
-    elif [ $OLD_SIZE_M -gt $NEW_SIZE_M ]; then
-        splog "VM volume is +$((OLD_SIZE_M - NEW_SIZE_M))MB than snapshot. Inflating..."
-        storpoolVolumeResize "$SP_VOL" "$OLD_SIZE_M"M
+    elif [ $OLD_SIZE -gt $NEW_SIZE ]; then
+        splog "VM volume is +$((OLD_SIZE - NEW_SIZE)) than snapshot. Resizing..."
+        storpoolVolumeResize "$SP_VOL" "$OLD_SIZE"
     fi
 else
     splog "Volume size not changed (${NEW_SIZE_M}M)"

@@ -149,7 +149,7 @@ else
 
     storpoolTemplate "$SP_TEMPLATE"
 
-    storpoolVolumeCreate "$SP_TEMP_VOL" "$SIZE"M "$SP_TEMPLATE"
+    storpoolVolumeCreate "$SP_TEMP_VOL" "$((SIZE*1024**2))" "$SP_TEMPLATE"
 
     trapAdd "storpoolVolumeDelete \"$SP_TEMP_VOL\" force snaps"
 
@@ -200,7 +200,7 @@ else
     else
         storpoolTemplate "$SP_TEMPLATE"
 
-        storpoolVolumeCreate "$SP_VOL" "$SIZE"M "$SP_TEMPLATE"
+        storpoolVolumeCreate "$SP_VOL" "$((SIZE*1024**2))" "$SP_TEMPLATE"
 
         trapAdd "storpoolVolumeDelete \"$SP_VOL\" force snaps"
 
