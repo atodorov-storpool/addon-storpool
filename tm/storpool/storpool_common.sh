@@ -575,7 +575,7 @@ function storpoolVolumeInfo()
 
 function storpoolVolumeCreate()
 {
-    storpoolRetry --json "{\"name\":\"$1\",\"size\":\"$2\"${3:+,\"template\":\"$3\"}}" -P VolumeCreate >/dev/null
+    storpoolRetry --json "{\"name\":\"$1\",\"size\":\"$2\"${3:+,\"template\":\"$3\"}${4:,\"tags\":{\"$VM_TAG\":\"$4\"}}}" -P VolumeCreate >/dev/null
 }
 
 function storpoolVolumeStartswith()
@@ -629,7 +629,7 @@ function storpoolVolumeRename()
 
 function storpoolVolumeClone()
 {
-    storpoolRetry --json "{\"name\":\"$2\",\"baseOn\":\"$1\"${3:+,\"template\":\"$3\"}}" -P VolumeCreate >/dev/null
+    storpoolRetry --json "{\"name\":\"$2\",\"baseOn\":\"$1\"${3:+,\"template\":\"$3\"}${4:+,\"tags\":{\"$VM_TAG\":\"$4\"}}}" -P VolumeCreate >/dev/null
 }
 
 function storpoolVolumeResize()
@@ -886,7 +886,7 @@ EOF
         storpoolVolumeDelete "$volume" "force"
     fi
 
-    storpoolVolumeCreate "$volume" "$volume_size" "$template"
+    storpoolVolumeCreate "$volume" "$volume_size" "$template" "$_vmid"
 
     trapAdd "storpoolVolumeDelete \"$volume\" \"force\""
 

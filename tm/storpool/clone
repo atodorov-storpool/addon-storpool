@@ -76,7 +76,7 @@ fi
 
 storpoolVolumeDelete "$SP_VOL"
 
-storpoolVolumeClone "$SP_PARENT" "$SP_VOL" "$SP_TEMPLATE"
+storpoolVolumeClone "$SP_PARENT" "$SP_VOL" "$SP_TEMPLATE" "$VM_ID"
 
 if [ -n "$SIZE" ]; then
     if [ $SIZE -gt ${ORIGINAL_SIZE:-0} ]; then

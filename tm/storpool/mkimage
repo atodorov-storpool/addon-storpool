@@ -98,7 +98,7 @@ SP_TEMPLATE="${ONE_PX}-ds-$DS_ID"
 
 storpoolTemplate "$SP_TEMPLATE"
 
-storpoolVolumeCreate "$SP_VOL" "$((SIZE*1024**2))" "$SP_TEMPLATE"
+storpoolVolumeCreate "$SP_VOL" "$((SIZE*1024**2))" "$SP_TEMPLATE" "$VM_ID"
 
 if [ "${FSTYPE,,}" != "raw" ]; then
     if [ "$FSTYPE" = "swap" ]; then

@@ -129,7 +129,7 @@ if storpoolVolumeInfo "$SP_VOL"; then
     storpoolVolumeResize "$SP_VOL" "$SP_SIZE" "shrinkOk"
     storpoolTemplate "$SP_TEMPLATE"
 else
-    storpoolVolumeCreate "$SP_VOL" "$SP_SIZE" "$SP_TEMPLATE"
+    storpoolVolumeCreate "$SP_VOL" "$SP_SIZE" "$SP_TEMPLATE" "$VM_ID"
 fi
 
 #-------------------------------------------------------------------------------
