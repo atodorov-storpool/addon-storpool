@@ -98,7 +98,7 @@ fi
 oneFsfreeze "$DST_HOST" "$DEPLOY_ID"
 trapAdd "oneFsthaw \"$DST_HOST\" \"$DEPLOY_ID\""
 
-storpoolSnapshotCreate "$SP_SNAP" "$SP_VOL"
+storpoolSnapshotCreate "$SP_SNAP" "$SP_VOL" "" "$VM_ID"
 
 oneFsthaw "$DST_HOST" "$DEPLOY_ID"
 trapReset

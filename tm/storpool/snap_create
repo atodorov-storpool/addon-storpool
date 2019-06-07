@@ -95,7 +95,7 @@ fi
 # Create snapshot
 #-------------------------------------------------------------------------------
 
-storpoolSnapshotCreate "$SP_SNAP" "$SP_VOL"
+storpoolSnapshotCreate "$SP_SNAP" "$SP_VOL" "" "$VM_ID"
 
 splog "END $VM_ID"
 exit 0
