@@ -78,7 +78,7 @@ if boolTrue "VMSNAPSHOT_OVERRIDE"; then
     virsh --connect \$LIBVIRT_URI qemu-agent-command "$DOMAIN" "{\"execute\":\"guest-fsfreeze-freeze\"}" 2>&1 >/dev/null
     logger -t "vmm_sp_snapshot_create_r[\$\$]" "fsfreeze $DOMAIN ret:\$? \$(date +%s.%N)"
     while [ -d /proc/\$PPID ]; do
-        logger -t "vmm_sp_snapshot_create_r[\$\$]" "$DOMAIN \$(virsh --connect \$LIBVIRT_URI qemu-agent-command "$DOMAIN" "{\"execute\":\"guest-fsfreeze-status\"}") \$(date +%s.%N)"
+        logger -t "vmm_sp_snapshot_create_r[\$\$]" "$DOMAIN \$(virsh --connect \$LIBVIRT_URI qemu-agent-command "$DOMAIN" "{\"execute\":\"guest-fsfreeze-status\"}") \$(date +%s.%N) PPID:\$PPID"
         sleep .1
     done
     virsh --connect \$LIBVIRT_URI qemu-agent-command "$DOMAIN" "{\"execute\":\"guest-fsfreeze-thaw\"}" 2>&1 >/dev/null

@@ -34,7 +34,7 @@ SP_TEMPLATE_STATUS_MINUTES=60
 
 # VM disks stats
 SP_VOLUME_SPACE_JSON="storpool_volume_usedSpace.json"
-SP_VOLUME_SPACE_RUN="storpool_req VolumeSpace"
+SP_VOLUME_SPACE_RUN="storpool_req VolumesSpace"
 SP_VOLUME_SPACE_MINUTES=60
 
 # VM disks snapshots stats
@@ -344,7 +344,7 @@ for i in ${!DS_ID_ARRAY[@]}; do
 	# create/update the template in StorPool
 	# or update ONE datastore
 	
-	tmp="$(storpool_req VolumesTemplatesList 2>"$tmpDir/error.log"| jq -r ".data|map(select(.name==\"$template_name\"))|.[]|[.replication,.placeAll,.placeTail,.iops,.bw,.placeHead]|@csv")" #"
+	tmp="$(storpool_req VolumeTemplatesList 2>"$tmpDir/error.log"| jq -r "map(select(.name==\"$template_name\"))|.[]|[.replication,.placeAll,.placeTail,.iops,.bw,.placeHead]|@csv")" #"
 	ret=$?
 	if [ -z "$tmp" ]; then
 		if [ $ret -ne 0 ] && [ -s "$tmpDir/error.log" ]; then

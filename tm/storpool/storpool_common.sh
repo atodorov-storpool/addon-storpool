@@ -360,18 +360,26 @@ function storpoolWrapper()
 	tmpErr="$(mktemp -t storpoolWrapper-XXXXXX)"
 	trapAdd "rm -f '$tmpErr'"
 	storpool_req "$@" 2>"$tmpErr"
-    ret=$?
-    splog "($ret) storpool_req $*"
-	if [ $ret -ne 0 ]; then
-            if [ -f "$tmpErr" ]; then
-                if [ -s "$tmpErr" ]; then
-                    local l=
-                    while read -u 5 l; do
-                        splog "ERR($ret): $l"
-                    done 5< <(cat "$tmpErr")
+        ret=$?
+        splog "($ret) storpool_req $*"
+        case "$ret" in
+            0)
+                :
+            ;;
+            3) #object does not exists
+                :
+            ;;
+            *)
+                if [ -f "$tmpErr" ]; then
+                    if [ -s "$tmpErr" ]; then
+                        local l=
+                        while read -u 5 l; do
+                            splog "ERR($ret): $l"
+                        done 5< <(cat "$tmpErr")
+                    fi
                 fi
-            fi
-        fi
+            ;;
+        esac
 	rm -rf "$tmpErr"
 	trapDel "rm -f '$tmpErr'"
     return $ret
@@ -380,11 +388,10 @@ function storpoolWrapper()
 function storpoolRetry() {
     if boolTrue "DEBUG_SP_RUN_CMD"; then
         if boolTrue "DEBUG_SP_RUN_CMD_VERBOSE"; then
-            splog "${SP_API_HTTP_HOST:+$SP_API_HTTP_HOST:}storpool $*"
+            splog "${SP_API_HTTP_HOST:+$SP_API_HTTP_HOST:}storpoolWrapper $*"
         else
-            for _last_cmd;do :;done
-            if [ "${_last_cmd}" != "list" ]; then
-                splog "${SP_API_HTTP_HOST:+$SP_API_HTTP_HOST:}storpool $*"
+            if [ "${1%Info}" = "$1" ]; then
+                splog "${SP_API_HTTP_HOST:+$SP_API_HTTP_HOST:}storpoolWrapper $*"
             fi
         fi
     fi
@@ -450,7 +457,7 @@ function storpoolVolumeInfo()
         V_TEMPLATE_NAME="${V_TEMPLATE_NAME//\"/}"
         V_TYPE="${V_TYPE//\"/}"
         break
-    done 5< <(storpoolRetry VolumeGetInfo "$_SP_VOL"|jq -r ".data|[.size,.parentName,.templateName,.tags.type]|@csv")
+    done 5< <(storpoolRetry VolumeGetInfo "$_SP_VOL"|jq -r "[.size,.parentName,.templateName,.tags.type]|@csv")
     if boolTrue "DEBUG_storpoolVolumeInfo"; then
         splog "storpoolVolumeInfo($_SP_VOL) size:$V_SIZE parentName:$V_PARENT_NAME templateName:$V_TEMPLATE_NAME tags.type:$V_TYPE"
     fi
@@ -470,14 +477,14 @@ function storpoolVolumeStartswith()
     local _SP_VOL="$1" vName
     while read -u 5 vName; do
         echo "${vName//\"/}"
-    done 5< <(storpoolRetry VolumesList | jq -r ".data|map(select(.name|startswith(\"${_SP_VOL}\")))|.[]|[.name]|@csv")
+    done 5< <(storpoolRetry VolumesList | jq -r "map(select(.name|contains(\"${_SP_VOL}\")))|.[]|[.name]|@csv")
 }
 
 function storpoolVolumeSnapshotsDelete()
 {
     while read -u 5 name; do
         storpoolSnapshotDelete "${name//\"/}"
-    done 5< <(storpoolRetry SnapshotsList | jq -r ".data|map(select(.name|contains(\"$1\")))|.[]|[.name]|@csv")
+    done 5< <(storpoolRetry SnapshotsList | jq -r "map(select(.name|contains(\"$1\")))|.[]|[.name]|@csv")
 }
 
 function storpoolVolumeDelete()
@@ -535,7 +542,7 @@ function storpoolVolumeAttach()
     local _SP_VOL="$1" _SP_HOST="${2:-$(hostname)}" _SP_MODE="${3:-rw}" _SP_TARGET="${4:-volume}"
     local _SP_CLIENT="$(storpoolClientId "$_SP_HOST" "$COMMON_DOMAIN")"
     if [ -n "$_SP_CLIENT" ]; then
-        local json="\"reassign\":[{\"$4:-volume\":\"$1\",\"${3:-rw}\":[\"$_SP_CLIENT\"]}]"
+        local json="\"reassign\":[{\"${4:-volume}\":\"$1\",\"${3:-rw}\":[\"$_SP_CLIENT\"]}]"
         storpoolRetry --json "{$json}" -P VolumesReassignWait >/dev/null
     else
         splog "Error: Can't get CLIENT_ID for $_SP_HOST"
@@ -599,7 +606,7 @@ function storpoolVolumeDetach()
         json="{\"$type\":\"${_SP_VOL}\",\"detach\":[$clients]${_FORCE:+,\"force\":true}}"
     fi
     if [ -n "$json" ]; then
-        storpoolRetry volumesReassignWait "{\"reassign\":[$json]}" >/dev/null
+        storpoolRetry --json "{\"reassign\":[$json]}" -P VolumesReassignWait >/dev/null
     fi
 }
 
@@ -610,7 +617,7 @@ function storpoolVolumeTemplate()
 
 function storpoolSnapshotInfo()
 {
-    SNAPSHOT_INFO=($(storpoolRetry -j snapshot "$1" info | jq -r '.data|[.size,.templateName]|@csv' | tr '[,"]' ' '  ))
+    SNAPSHOT_INFO=($(storpoolRetry SnapshotGetInfo "$1" | jq -r '[.size,.templateName]|@csv' | tr '[,"]' ' '  ))
     if boolTrue "DEBUG_storpoolSnapshotInfo"; then
         splog "storpoolSnapshotInfo($1):${SNAPSHOT_INFO[@]}"
     fi

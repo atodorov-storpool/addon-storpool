@@ -95,7 +95,7 @@ if [ "${realDev%-*}" = "/dev/sp" ]; then
 	else
 		used="spaceUsed"
 	fi
-	spSize=$(eval $SP_CMD_VOLUME_SPACE | jq -r ".data | map( select( .name==\"${spVolume}\" ) ) | .[] | [.${used}] | @csv") #"
+	spSize=$(eval $SP_CMD_VOLUME_SPACE | jq -r "map( select( .name==\"${spVolume}\" ) ) | .[] | [.${used}] | @csv") #"
 	[ -n "$spSize" ] || exit 1
 	echo "<disk>"
 	echo " <size>$spSize</size>"
@@ -116,7 +116,7 @@ if [ "${realDev%-*}" = "/dev/sp" ]; then
   <size>$snap_size</size>
  </snapshot>
 EOF
-	done < <(eval $SP_CMD_SNAPSHOT_SPACE | jq -r ".data | map( select( .name | contains(\"${spVolume}-snap\") ) ) | .[] | [.name, .${used}] | @csv" | sort)
+	done < <(eval $SP_CMD_SNAPSHOT_SPACE | jq -r "map( select( .name | contains(\"${spVolume}-snap\") ) ) | .[] | [.name, .${used}] | @csv" | sort)
 else
 	if [ -b "$realDev" ]; then
 		disk_size=$($BLOCKDEV_GET_SIZE "$realDev")
