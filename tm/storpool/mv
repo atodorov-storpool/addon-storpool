@@ -289,6 +289,7 @@ EOF
                 fi
             fi
         fi
+        splog "END $VM_ID [SYSTEM_DS]"
      else
         for i in ${!DISK_ID_ARRAY[@]}; do
             if [ "${DISK_TM_ARRAY[i]}" = "" ]; then
@@ -326,7 +327,8 @@ EOF
                     storpoolVolumeTemplate "$SP_VOL" "${ONE_PX}-ds-$DS_ID"
                 fi
             fi
-        done
+         done
+         splog "END $VM_ID DISK_ID:$DISK_ID [SYSTEM_DS]"
      fi
      splog "END $VM_ID [SYSTEM_DS]"
      exit 0
@@ -355,7 +357,7 @@ fi
 #-------------------------------------------------------------------------------
 
 if [ -n "$DETACH_ONLY" ]; then
-    splog "END $VM_ID $DETACH_ONLY [IMAGE_DS]"
+    splog "END $VM_ID DISK_ID:$DISK_ID $DETACH_ONLY [IMAGE_DS]"
     exit 0
 fi
 
@@ -400,5 +402,5 @@ if boolTrue "DO_SYMLINK"; then
     oneSymlink "$DST_HOST" "$SP_LINK" "$DST_PATH"
 fi
 
-splog "END $VM_ID [IMAGE_DS]"
+splog "END $VM_ID DISK_ID:$DISK_ID [IMAGE_DS]"
 exit 0

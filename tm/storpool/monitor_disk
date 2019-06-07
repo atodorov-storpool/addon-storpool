@@ -17,7 +17,7 @@
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
 
-function splog() { logger -t "tm_sp_${0##*/}[$$]" "$*"; }
+function splog() { logger -t "tm_sp_${0##*/}[${DEBUG_PPID:+\$PPID:}$$]" "$*"; }
 
 DISK="$1"
 DS_ID="$2"
@@ -54,8 +54,8 @@ function boolTrue()
 }
 
 if boolTrue "DEBUG_TM_MONITOR_DISK_VERBOSE"; then
-	splog "$PWD $DISK $DS_ID $VM_ID $DRIVER"
-	[ -d "$SP_DS_TMP" ] && splog "found SP_DS_TMP:$SP_DS_TMP"
+	splog "DS_ID:$DS_ID VM_ID:$VM_ID $DISK $DRIVER"
+#	[ -d "$SP_DS_TMP" ] && splog "Datastore $DS_ID found SP_DS_TMP:$SP_DS_TMP"
 fi
 
 DISK_LINK="$(readlink "$DISK")"
@@ -103,7 +103,7 @@ if [ -f "$SP_DS_TMP/sizes" ]; then
 				fi
 				snap_size=$((data/1024/1024))
 				if boolTrue "DEBUG_TM_MONITOR_DISK"; then
-					splog "$DISK ID:$DISK_ID SNAP:$snap_id SIZE:$snap_size ($((other/1024/1024))) snapshot:$name"
+					splog "$DISK SNAP:$snap_id SIZE_MB:$snap_size  (other $((other/1024/1024))) snapshot:$name (via $used)"
 				fi
 				echo -n "SNAPSHOT_SIZE=[ID=${snap_id},DISK_ID=${DISK_ID},SIZE=${snap_size}] "
 			else
@@ -119,7 +119,7 @@ if [ -f "$SP_DS_TMP/sizes" ]; then
 					disk_size=1
 				fi
 				if boolTrue "DEBUG_TM_MONITOR_DISK"; then
-					splog "$DISK ID:$DISK_ID SIZE:$disk_size ($((other/1024/1024))) volume:$name"
+					splog "$DISK ID:$DISK_ID SIZE_MB:$disk_size (other $((other/1024/1024))) volume:$name (via $used)"
 				fi
 				echo -n "DISK_SIZE=[ID=${DISK_ID},SIZE=${disk_size}] "
 			else
@@ -129,7 +129,7 @@ if [ -f "$SP_DS_TMP/sizes" ]; then
 	done
 	exit
 else
-	if boolTrue "DEBUG_TM_MONITOR_DISK"; then
+	if boolTrue "DEBUG_TM_MONITOR_DISK_VERBOSE"; then
 		splog "${DRIVER}:${DISK} not found $SP_DS_TMP/sizes"
 	fi
 fi
@@ -159,16 +159,19 @@ if [ "$disk_size" = "0" ] && [ -n "$spSize" ] && [ "$spSize" -gt "0" ]; then
 	disk_size=1
 fi
 if boolTrue "DEBUG_TM_MONITOR_DISK"; then
-	splog "$DISK ID:$DISK_ID SIZE:$disk_size ($used)"
+	splog "$DISK ID:$DISK_ID SIZE_MB:$disk_size ($used)"
 fi
 echo -n "DISK_SIZE=[ID=${DISK_ID},SIZE=${disk_size}] "
 
+if boolTrue "$DEBUG_TM_MONITOR_DISK_VERBOSE";then
+	splog "SP_CMD_SNAPSHOT_SPACE:$SP_CMD_SNAPSHOT_SPACE"
+fi
 while IFS=',' read name snap_size; do
 	name=${name//\"/}
 	snap_id=${name#*snap}
 	snap_size=$((snap_size/1024/1024))
 	if boolTrue "DEBUG_TM_MONITOR_DISK"; then
-		splog "$DISK ID:$DISK_ID SNAP:$snap_id SIZE:$snap_size ($used)"
+		splog "$DISK ID:$DISK_ID SNAP:$snap_id SIZE_MB:$snap_size ($used)"
 	fi
 	echo -n "SNAPSHOT_SIZE=[ID=${snap_id},DISK_ID=${DISK_ID},SIZE=${snap_size}] "
 done < <(eval $SP_CMD_SNAPSHOT_SPACE 2>/dev/null | jq -r ".data | map( select( .name | contains(\"${spVolume}-snap\") ) ) | .[] | [.name, .${used}] | @csv" | sort)

@@ -72,7 +72,7 @@ if [ "$DS_TEMPLATE_TYPE" = "SYSTEM_DS" ]; then
                 storpoolVolumeSnapshotsDelete "${SP_VOL}-${VMSNAPSHOT_TAG}-"
             fi
             RM_CMD="rm -rf '${DST_PATH}/disk.${DISK_ID_ARRAY[i]}'"
-            splog "run RM_CMD on $DST_HOST (${DST_PATH}/disk.${DISK_ID_ARRAY[i]})"
+            splog "run on $DST_HOST $RM_CMD"
             ssh_exec_and_log "$DST_HOST" "$RM_CMD" \
                 "Error deleting ${DST_PATH}/disk.${DISK_ID_ARRAY[i]} on $DST_HOST"
 #        else
@@ -102,7 +102,7 @@ if [ "$DS_TEMPLATE_TYPE" = "SYSTEM_DS" ]; then
         fi
     fi
     RM_CMD="rm -rf '$DST_PATH'"
-    splog "run RM_CMD on $DST_HOST ($DST_PATH)"
+    splog "run on $DST_HOST $RM_CMD"
     ssh_exec_and_log "$DST_HOST" "$RM_CMD" \
              "Error deleting $SP_VOL in $DST_HOST($DST_PATH)"
 
@@ -149,5 +149,5 @@ splog "run RM_CMD on $DST_HOST ($DST_PATH)"
 ssh_exec_and_log "$DST_HOST" "$RM_CMD" \
           "Error deleting $SP_VOL in $DST_HOST($DST_PATH)"
 
-splog "END $VM_ID"
+splog "END $VM_ID DISK_ID:$DISK_ID"
 exit 0

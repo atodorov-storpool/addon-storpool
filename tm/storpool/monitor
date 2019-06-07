@@ -17,7 +17,7 @@
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
 
-function splog() { logger -t "tm_sp_${0##*/}[$$]" "$*"; }
+function splog() { logger -t "tm_sp_${0##*/}[${DEBUG_PPID:+\$PPID:}$$]" "$*"; }
 
 DRV_ACTION="$1"
 DS_ID="$2"
@@ -52,7 +52,7 @@ function boolTrue()
 }
 
 if boolTrue "DEBUG_TM_MONITOR"; then
-	splog "$PWD datastore $DS_ID ${DRV_ACTION:0:6}"
+	splog "DS_ID:$DS_ID ${DRV_ACTION:0:6}"
 	export DEBUG_TM_MONITOR_DS=1
 fi
 
@@ -64,6 +64,7 @@ if [ "${DRV_ACTION:0:6}" = "system" ]; then
 		echo "{[]}" >"${SP_JSON_PATH}/${SP_TEMPLATE_STATUS_JSON}"
 		splog "${SP_JSON_PATH}/${SP_TEMPLATE_STATUS_JSON} not found. Created empty one."
 	fi
+	DS_TYPE="SYSTEM_DS"
 #	echo "cd $PWD && bash -x $PWD/$0 $*" >/tmp/monitor_system.sh
 else
 	source "${DRIVER_PATH}/../../tm/storpool/storpool_common.sh"
@@ -98,13 +99,17 @@ while IFS=',' read n t f u2 u3; do
 		case "${DRV_ACTION:0:6}" in
 			system)
 				echo $((u/1024/1024)) $((t/1024/1024)) $((f/1024/1024))
-				DS_TYPE="SYSTEM"
+				if boolTrue "$DEBUG_TM_MONITOR"; then
+					splog "DS_ID:$DS_ID $DS_TYPE u:$((u/1024/1024)) t:$((t/1024/1024)) f:$((f/1024/1024))"
+				fi
 				;;
 			*)
 				echo "USED_MB=$((u/1024/1024))"
 				echo "TOTAL_MB=$((t/1024/1024))"
 				echo "FREE_MB=$((f/1024/1024))"
-				DS_TYPE="IMAGE"
+				if boolTrue "$DEBUG_TM_MONITOR"; then
+					splog "DS_ID:$DS_ID $DS_TYPE USED_MB:$((u/1024/1024)) TOTAL_MB:$((t/1024/1024)) FREE_MB:$((f/1024/1024))"
+				fi
 				;;
 		esac
 		if boolTrue "DEBUG_TM_MONITOR"; then
@@ -118,12 +123,17 @@ if [ -d "$(readlink -f $BASE_PATH)" ]; then
 	if [ -f "$BASE_PATH/.monitor" ]; then
 		if boolTrue "DEBUG_TM_MONITOR"; then
 			test -f "$BASE_PATH/.monitor" && DS_DRIVER="$(<"$BASE_PATH/.monitor")" || DS_DRIVER="storpool"
-			splog "$DS_ID is marked for remote monitoring via IM_MAD using 'tm/$DS_DRIVER/monitor_ds'"
+			splog "DS_ID:$DS_ID $BASE_PATH/.monitor ==> $DS_DRIVER (exit 0)"
 		fi
 		exit 0
+	else
+		if boolTrue "$DEBUG_TM_MONITOR_VERBOSE"; then
+			splog "File $BASE_PATH/.monitor not found."
+		fi
 	fi
 	if boolTrue "DEBUG_TM_MONITOR"; then
-		splog "run $DRIVER_PATH/monitor_ds $BASE_PATH"
+		DEBUG_TM_MONITOR_DS=1
+		splog "Calling $DRIVER_PATH/monitor_ds $BASE_PATH (.monitor file not found)"
 	fi
 	"$DRIVER_PATH/monitor_ds" "$BASE_PATH"
 else

@@ -25,7 +25,7 @@ PATH="/bin:/sbin:/usr/bin:/usr/sbin:$PATH"
 
 function splog()
 {
-    logger -t "${LOG_PREFIX:-tm}_sp_${0##*/}[$$]" "${DEBUG_LINENO:+[${BASH_LINENO[-2]}]}$*"
+    logger -t "${LOG_PREFIX:-tm}_sp_${0##*/}[${DEBUG_PPID:+\$PPID:}$$]" "${DEBUG_LINENO:+[${BASH_LINENO[-2]}]}$*"
 }
 
 #-------------------------------------------------------------------------------
@@ -222,7 +222,7 @@ REMOTE_HDR=$(cat <<EOF
     #_REMOTE_HDR
     set -e
     export PATH=/bin:/usr/bin:/sbin:/usr/sbin:\$PATH
-    splog(){ logger -t "${LOG_PREFIX:-tm}_sp_${0##*/}_r" "\$*"; }
+    splog(){ logger -t "${LOG_PREFIX:-tm}_sp_${0##*/}[${DEBUG_PPID:+\$PPID:}$$]_r" "\$*"; }
 EOF
 )
 REMOTE_FTR=$(cat <<EOF
@@ -693,6 +693,7 @@ function oneSymlink()
         ln -sf "$_src" "\$dst"
         splog "ln -sf $_src \$dst (\$?)"
         echo "storpool" >"\$dst".monitor
+        splog "Wrote 'storpool' to \${dst}.monitor (\$?)"
     done
 EOF
 )
@@ -819,8 +820,10 @@ function oneCheckpointRestore()
     else
         mkdir -p "$_path"
 
-        [ -f "$_path/.monitor" ] || echo "storpool" >"$_path/.monitor"
-
+        if [ ! -f "$_path/.monitor" ]; then
+            echo "storpool" >"$_path/.monitor"
+            splog "Wrote 'storpool' in $_path/.monitor (\$?)"
+        fi
         if tar --no-seek --use-compress-program="$SP_COMPRESSION" --to-stdout --extract --file="$sp_link" >"$checkpoint"; then
             splog "RESTORED $volume $checkpoint"
         else

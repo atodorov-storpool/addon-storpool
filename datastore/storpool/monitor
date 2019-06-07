@@ -17,7 +17,7 @@
 # limitations under the License.                                             #
 #--------------------------------------------------------------------------- #
 
-function splog() { logger -t "ds_sp_${0##*/}[$$]" "$*"; }
+function splog() { logger -t "ds_sp_${0##*/}[${DEBUG_PPID:+\$PPID:}$$]" "$*"; }
 
 DRV_ACTION="$1"
 DS_ID="$2"
@@ -48,7 +48,7 @@ fi
 DS_NAME="${ONE_PX}-ds-$DS_ID"
 
 if boolTrue "DEBUG_DS_MONITOR"; then
-	splog "$PWD datastore $DS_ID ${DRV_ACTION:0:6}"
+	splog "DS_ID:$DS_ID ${DRV_ACTION:0:6}"
 fi
 
 if [ "${DRV_ACTION:0:6}" = "system" ]; then
@@ -59,6 +59,7 @@ if [ "${DRV_ACTION:0:6}" = "system" ]; then
 		echo "{[]}" >"${SP_JSON_PATH}/${SP_TEMPLATE_STATUS_JSON}"
 		splog "${SP_JSON_PATH}/${SP_TEMPLATE_STATUS_JSON} not found. Created empty one."
 	fi
+        DS_TYPE="SYSTEM_DS"
 #	echo "bash -x $PWD/$0 $*" >/tmp/monitor_system.sh
 else
 	oneDsDriverAction "${DRIVER_PATH}"
@@ -92,13 +93,18 @@ while IFS=',' read name storedCapacity storedFree u2 u3; do
 		case "${DRV_ACTION:0:6}" in
 			system)
 				echo $((used/1024/1024)) $((storedCapacity/1024/1024)) $((storedFree/1024/1024))
-				DS_TYPE="SYSTEM"
+				if boolTrue "$DEBUG_DS_MONITOR"; then
+					splog "DS_ID:$DS_ID $DS_TYPE u:$((used/1024/1024)) t:$((storedCapacity/1024/1024)) f:$((storedFree/1024/1024))"
+				fi
 				;;
 			*)
 				echo "USED_MB=$((used/1024/1024))"
 				echo "TOTAL_MB=$((storedCapacity/1024/1024))"
 				echo "FREE_MB=$((storedFree/1024/1024))"
 				DS_TYPE="IMAGE"
+				if boolTrue "$DEBUG_DS_MONITOR"; then
+					splog "DS_ID:$DS_ID $DS_TYPE USED_MB:$((used/1024/1024)) TOTAL_MB:$((storedCapacity/1024/1024)) FREE_MB:$((storedFree/1024/1024))"
+				fi
 				;;
 		esac
 		if boolTrue "DEBUG_DS_MONITOR"; then

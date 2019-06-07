@@ -26,7 +26,7 @@
 #     echo "  ID = $ds,"
 #-------------------------------------------------------------------------------
 
-function splog() { logger -t "im_sp_monitor_ds[$$]" "$*"; }
+function splog() { logger -t "im_sp_monitor_ds[${DEBUG_PPID:+\$PPID:}$$]" "$*"; }
 
 SP_MONITOR_DS="../../datastore/storpool/monitor"
 ONE_VERSION="$(<../../VERSION)"
@@ -63,7 +63,7 @@ if [ -f "$SP_MONITOR_DS" ]; then
 #    fi
     if [ -d "$SP_DS_TMP" ]; then
         if boolTrue "IM_MONITOR_DS_DEBUG_VERBOSE"; then
-            splog "found SP_DS_TMP:$SP_DS_TMP"
+            splog "DS_ID:$ds found SP_DS_TMP:$SP_DS_TMP"
         fi
     else
         SP_DS_TMP="$(mktemp --tmpdir -d sp-tmp-XXXXXXXX)"
@@ -72,7 +72,9 @@ if [ -f "$SP_MONITOR_DS" ]; then
         if boolTrue "IM_MONITOR_DS_DEBUG"; then
             START_TIME="$(date +%s)"
             export START_TIME
-            splog "mktemp $SP_DS_TMP returned $_ret, START_TIME=$START_TIME"
+            if boolTrue "$IM_MONITOR_DS_DEBUG_VERBOSE"; then
+                splog "mktemp $SP_DS_TMP ($_ret), START_TIME=$START_TIME"
+            fi
         fi
         function sp_trap()
         {
@@ -88,17 +90,17 @@ if [ -f "$SP_MONITOR_DS" ]; then
             fi
             if [ -n "$START_TIME" ]; then
                 local end_time="$(date +%s)"
-                splog "'$0' runtime:$((end_time - START_TIME))sec"
+                splog "'$PWD/$0' runtime:$((end_time - START_TIME))sec"
             fi
             if boolTrue "IM_MONITOR_DS_DEBUG_VERBOSE"; then
-                splog "$0 do exit $_ret"
+                splog "sp_trap ($PWD) $0 do exit $_ret"
             fi
             exit $_ret
         }
         trap sp_trap TERM INT QUIT HUP EXIT
 
         if [ $_ret -eq 0 ]; then
-            if boolTrue "IM_MONITOR_DS_DEBUG"; then
+            if boolTrue "IM_MONITOR_DS_DEBUG_VERBOSE"; then
                 splog "generating disk space data cache $SP_DS_TMP/sizes"
             fi
             SP_CMD_VOLUME_SPACE="${SP_CMD_VOLUME_SPACE//_SP_VOLUME_SPACE_JSON_/$SP_VOLUME_SPACE_JSON}"
@@ -118,11 +120,14 @@ if [ -f "$SP_MONITOR_DS" ]; then
         fi
     fi
 
-    SP_DS_SIZES="$(bash $SP_MONITOR_DS system $ds 2>/dev/null)"
+    if boolTrue "$IM_MONITOR_DS_DEBUG_VERBOSE"; then
+        splog "running '$SP_MONITOR_DS system $ds' to get SP_DS_SIZES ..."
+    fi
+    SP_DS_SIZES="$(bash "$SP_MONITOR_DS" system "$ds" 2>/dev/null)"
 
     if [ -n "$SP_DS_SIZES" ]; then
         if boolTrue "IM_MONITOR_DS_DEBUG"; then
-            splog "SP_DS_SIZES=$SP_DS_SIZES"
+            splog "DS_ID $ds SP_DS_SIZES=$SP_DS_SIZES"
         fi
 
         SP_SIZES=($SP_DS_SIZES)
@@ -147,8 +152,16 @@ if [ -f "$SP_MONITOR_DS" ]; then
             echo "  FREE_MB = $SP_FREE_MB"
             echo "]"
 
+            if boolTrue "$IM_MONITOR_DS_DEBUG"; then
+                if boolTrue "$IM_MONITOR_DS_DEBUG_VERBOSE"; then
+                    splog "DS_ID $ds (StorPool) SPUSED=$SP_USED_MB SPTOTAL=$SP_TOTAL_MB SPFREE=$SP_FREE_MB USED=$USED_MB TOTAL=$TOTAL_MB FREE=$FREE_MB $dir"
+                else
+                    splog "$dir USED_MB:$SP_USED_MB TOTAL_MB:$SP_TOTAL_MB FREE_MB:$SP_FREE_MB (StorPool)"
+                fi
+            fi
+
             if [ "${ONE_VERSION:0:1}" = "4" ]; then
-                # hijacking the loop in im/monitor_ds.sh
+                # hijacking the loop in im/kvm-probes.d/monitor_ds.sh
                 continue
             fi
 
@@ -159,7 +172,7 @@ if [ -f "$SP_MONITOR_DS" ]; then
                 SCRIPT_PATH="${REMOTES_DIR}/tm/${DRIVER:-ssh}/monitor_ds"
                 if [ -e "$SCRIPT_PATH" ]; then
                     if boolTrue "IM_MONITOR_DS_DEBUG"; then
-                        splog "run $SCRIPT_PATH $dir (set DEBUG_TM_MONITOR_DS=1)"
+                        splog "disks $SCRIPT_PATH $dir (found .monitor file)"
                         export DEBUG_TM_MONITOR_DS=1
                     fi
                     "$SCRIPT_PATH" "$dir"
@@ -168,15 +181,15 @@ if [ -f "$SP_MONITOR_DS" ]; then
                 fi
             else
                 if boolTrue "IM_MONITOR_DS_DEBUG_VERBOSE"; then
-                    splog "${dir}/.monitor not found. Shared filesystem?"
+                    splog "${dir}/.monitor file not found. DS_ID=$ds not marked for remote monitoring."
                 fi
             fi
-            # hijacking the loop in im/monitor_ds.sh
+            # hijacking the loop in im/kvm-probes.d/monitor_ds.sh
             continue
         fi
     else
         if boolTrue "IM_MONITOR_DS_DEBUG_VERBOSE"; then
-            splog "Datastore $ds is not on StorPool"
+            splog "SYSTEM Datastore $ds hasn't StorPool Template configuration"
         fi
     fi
 else

@@ -18,7 +18,7 @@
 
 export PATH="/bin:/sbin:/usr/bin:/usr/sbin:$PATH"
 
-function splog() { logger -t "ds_sp_${0##*/}[$$]" "$*"; }
+function splog() { logger -t "ds_sp_${0##*/}[${DEBUG_PPID:+\$PPID:}$$]" "$*"; }
 
 set -o pipefail
 
@@ -323,7 +323,7 @@ for i in ${!DS_ID_ARRAY[@]}; do
 	fi
 	
 	if boolTrue "SP_SKIP_MONITOR_ARRAY[i]"; then
-		splog "DS_ID $DS_ID Skipped (SP_SKIP_MONITOR=${SP_SKIP_MONITOR_ARRAY[i]})"
+#		splog "DS_ID $DS_ID Skipped (SP_SKIP_MONITOR=${SP_SKIP_MONITOR_ARRAY[i]})"
 		continue
 	fi
 	
