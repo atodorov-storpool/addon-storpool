@@ -459,25 +459,25 @@ function storpoolVolumeInfo()
 
 function storpoolVolumeCreate()
 {
-    storpoolRetry --json "{\"name\":\"$1\",\"size\":\"$2\"${3:+,\"template\":\"$3\"}${4:,\"tags\":{\"$VM_TAG\":\"$4\"}}}" -P VolumeCreate >/dev/null
+    local json="\"name\":\"$1\",\"size\":\"$2\""
+    [ -z "$3" ] || json+=",\"template\":\"$3\""
+    [ -z "$4" ] || json+=",\"tags\":{\"${VM_TAG:-nvm}\":\"$4\"}"
+    storpoolRetry --json "{$json}" -P VolumeCreate >/dev/null
 }
 
 function storpoolVolumeStartswith()
 {
     local _SP_VOL="$1" vName
-    while read vName; do
+    while read -u 5 vName; do
         echo "${vName//\"/}"
-    done < <(storpoolRetry VolumesList | jq -r ".data|map(select(.name|startswith(\"${_SP_VOL}\")))|.[]|[.name]|@csv")
+    done 5< <(storpoolRetry VolumesList | jq -r ".data|map(select(.name|startswith(\"${_SP_VOL}\")))|.[]|[.name]|@csv")
 }
 
 function storpoolVolumeSnapshotsDelete()
 {
-    storpoolRetry SnapshotsList | \
-        jq -r ".data|map(select(.name|contains(\"$1\")))|.[]|[.name]|@csv" | \
-        while read name; do
-            name="${name//\"/}"
-            storpoolSnapshotDelete "$name"
-        done
+    while read -u 5 name; do
+        storpoolSnapshotDelete "${name//\"/}"
+    done 5< <(storpoolRetry SnapshotsList | jq -r ".data|map(select(.name|contains(\"$1\")))|.[]|[.name]|@csv")
 }
 
 function storpoolVolumeDelete()
@@ -508,17 +508,26 @@ function storpoolVolumeDelete()
 
 function storpoolVolumeRename()
 {
-    storpoolRetry --json "{\"rename\":\"$2\"${3:+,\"template\":\"$3\"}\"}" -P VolumeUpdate "$1" >/dev/null
+    local json="\"rename\":\"$2\""
+    [ -z "$3" ] || json+=",\"template\":\"$3\""
+    [ -z "$4" ] || json+=",\"tags\":{\"${VM_TAG:-nvm}\":\"$4\"}"
+    storpoolRetry --json "{$json}" -P VolumeUpdate "$1" >/dev/null
 }
 
 function storpoolVolumeClone()
 {
-    storpoolRetry --json "{\"name\":\"$2\",\"baseOn\":\"$1\"${3:+,\"template\":\"$3\"}${4:+,\"tags\":{\"$VM_TAG\":\"$4\"}}}" -P VolumeCreate >/dev/null
+    local json="\"name\":\"$2\",\"baseOn\":\"$1\""
+    [ -z "$3" ] || json+=",\"template\":\"$3\""
+    [ -z "$4" ] || json+=",\"tags\":{\"${VM_TAG:-nvm}\":\"$4\"}"
+    storpoolRetry --json "{$json}" -P VolumeCreate >/dev/null
 }
 
 function storpoolVolumeResize()
 {
-    storpoolRetry --json "{\"size\":${2}${3:+,\"shrinkOk\":true}}" -P VolumeUpdate "$1" >/dev/null
+    local json="\"size\":$2"
+    [ -z "$3" ] || json+=",\"shrinkOk\":true"
+    [ -z "$4" ] || json+=",\"tags\":{\"${VM_TAG:-nvm}\":\"$4\"}"
+    storpoolRetry --json "{$json}" -P VolumeUpdate "$1" >/dev/null
 }
 
 function storpoolVolumeAttach()
@@ -526,7 +535,8 @@ function storpoolVolumeAttach()
     local _SP_VOL="$1" _SP_HOST="${2:-$(hostname)}" _SP_MODE="${3:-rw}" _SP_TARGET="${4:-volume}"
     local _SP_CLIENT="$(storpoolClientId "$_SP_HOST" "$COMMON_DOMAIN")"
     if [ -n "$_SP_CLIENT" ]; then
-        storpoolRetry --json "{\"reassign\":[{\"$_SP_TARGET\":\"$_SP_VOL\",\"$_SP_MODE\":[\"$_SP_SLIENT\"]}]}" -P VolumesReassignWait >/dev/null
+        local json="\"reassign\":[{\"$4:-volume\":\"$1\",\"${3:-rw}\":[\"$_SP_CLIENT\"]}]"
+        storpoolRetry --json "{$json}" -P VolumesReassignWait >/dev/null
     else
         splog "Error: Can't get CLIENT_ID for $_SP_HOST"
         exit -1
@@ -621,7 +631,10 @@ function storpoolSnapshotDelete()
 
 function storpoolSnapshotClone()
 {
-    storpoolRetry --json "{\"name\":\"$2\",\"parent\":\"$1\"${3:+,\"template\":\"$3\"}}" -P VolumeCreate >/dev/null
+    local json="\"name\":\"$2\",\"parent\":\"$1\""
+    [ -z "$3" ] || json+=",\"template\":\"$3\"" >/dev/null
+    [ -z "$4" ] || json+=",\"tags\":{\"${VM_TAG:-nvm}\":\"$4\"}"
+    storpoolRetry --json "{$json}" -P VolumeCreate >/dev/null
 }
 
 function storpoolSnapshotRevert()
@@ -633,7 +646,7 @@ function storpoolSnapshotRevert()
 
     trapAdd "storpoolVolumeRename \"${_SP_VOL}-$SP_TMP\" \"$_SP_VOL\""
 
-    storpoolSnapshotClone "$_SP_SNAPSHOT" "$_SP_VOL" "$_SP_TEMPLATE"
+    storpoolSnapshotClone "$_SP_SNAPSHOT" "$_SP_VOL" "$_SP_TEMPLATE" "$4"
 
     trapReset
 
