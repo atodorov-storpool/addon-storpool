@@ -160,6 +160,7 @@ if [ "$SRC_DS_ID" -ne "$DATASTORE_ID" ]; then
         CLONE_GW="$SRC_SP_CLONE_GW"
         storpoolVolumeDetach "$SP_PARENT" "" "$SRC_SP_CLONE_GW"
 
+        splog "END $SP_DST"
         exit
     else
         # reset environment and fallback to default routine
