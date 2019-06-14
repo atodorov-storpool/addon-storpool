@@ -1,37 +1,8 @@
 ### Advanced configuration variables
 
-#### StorPool template management
-
-##### StorPool volume template management
+#### StorPool volume template management
 
 Set `NO_VOLUME_TEMPLATE=1` in storpool-addonrc to not enforce the datastore template on the StorPool volumes. The newly created images and the contextualization ISO images still will have datastore template enforced.
-
-##### StorPool template management via datastore variables (obsolete)
-
-The template management is disabled by default (recommended). To enable set `AUTO_TEMPLATE=1` in storpool-addonrc file.
-```
-ONE_LOCATION=/var/lib/one
-echo "AUTO_TEMPLATE=1" >>$ONE_LOCATION/remotes/addon-storpoolrc
-```
-
-The following variables should be set on all StorPool backed datastores:
-
-* **SP_REPLICATION**: [mandatory] The StorPool replication level for the datastore. Number (1)
-* **SP_PLACEALL**: [mandatory] The name of StorPool placement group of disks where to store data. String (2)
-* **SP_PLACETAIL**: [optional] The name of StorPool placement group of disks from where to read data. String (3)
-* **SP_PLACEHEAD**: [optional] The name of StorPool placement group of disks for last data replica. String (4)
-* **SP_BW**: [optional] The BW limit per volume on the DATASTORE.
-* **SP_IOPS**: [optional] The IOPS limit per volume on the DATASTORE. Number.
-
-
-1. The replication level defines how many separate copies to keep for each data block. Supported values are: `1`, `2` and `3`.
-1. The PlaceAll placement group is defined in StorPool as list of drives where to store the data.
-1. The PlaceTail placement group is defined in StorPool as list of drives. Used in StorPool hybrid setup. If the setup is not of hybrid type leave blank or same as **SP_PLACEALL**
-1. The PlaceHead placement group is defined in StorPool as list of drives. Used in StorPool hybrid setups with one HDD replica and two SSD replicas of the data.
-
-When adding a new datastore the reported size will appear after a refresh cycle of the cached StorPool data. Default is every 4th minute set in `/etc/cron.d/addon-storpoolrc`.
-
-> :exclamation: The implemented management of StorPool templates is not deleting StorPool templates! After deleting a datastore in OpenNebula the corresponding template in StorPool should be deleted manually.
 
 #### StorPool backed SYSTEM datastore on shared filesystem
 
@@ -467,4 +438,33 @@ patch -p1 < ~/addon-storpool/patches/vmm/5.8.0/attach_disk.patch
 ```
 
 > The installation script should apply the patch too
+
+#### StorPool template management via datastore variables
+
+The template management is disabled by default and is not recomended for production use.
+
+To enable set `AUTO_TEMPLATE=1` in storpool-addonrc file.
+```
+ONE_LOCATION=/var/lib/one
+echo "AUTO_TEMPLATE=1" >>$ONE_LOCATION/remotes/addon-storpoolrc
+```
+
+The following variables should be set on all StorPool backed datastores:
+
+* **SP_REPLICATION**: [mandatory] The StorPool replication level for the datastore. Number (1)
+* **SP_PLACEALL**: [mandatory] The name of StorPool placement group of disks where to store data. String (2)
+* **SP_PLACETAIL**: [optional] The name of StorPool placement group of disks from where to read data. String (3)
+* **SP_PLACEHEAD**: [optional] The name of StorPool placement group of disks for last data replica. String (4)
+* **SP_BW**: [optional] The BW limit per volume on the DATASTORE.
+* **SP_IOPS**: [optional] The IOPS limit per volume on the DATASTORE. Number.
+
+
+1. The replication level defines how many separate copies to keep for each data block. Supported values are: `1`, `2` and `3`.
+1. The PlaceAll placement group is defined in StorPool as list of drives where to store the data.
+1. The PlaceTail placement group is defined in StorPool as list of drives. Used in StorPool hybrid setup. If the setup is not of hybrid type leave blank or same as **SP_PLACEALL**
+1. The PlaceHead placement group is defined in StorPool as list of drives. Used in StorPool hybrid setups with one HDD replica and two SSD replicas of the data.
+
+When adding a new datastore the reported size will appear after a refresh cycle of the cached StorPool data. Default is every 4th minute set in `/etc/cron.d/addon-storpoolrc`.
+
+> :exclamation: The implemented management of StorPool templates is not deleting StorPool templates! After deleting a datastore in OpenNebula the corresponding template in StorPool should be deleted manually.
 

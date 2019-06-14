@@ -30,14 +30,14 @@ The additional extras requires latest stable versions of OpenNebula and StorPool
 
 * Working OpenNebula CLI interface with `oneadmin` account authorized to OpenNebula's core with UID=0
 * Password-less SSH access from the front-end `oneadmin` user to the `node` instances.
-* StorPool CLI installed, authorization token and access to the StorPool API network
+* Access to the StorPool API network and authorization token
 * (Optional) member of the StorPool cluster with working StorPool initiator driver(storpool_block). In this case the OpenNebula admin account `oneadmin` must be member of the 'disk' system group to have access to the StorPool block device during image create/import operations.
 
 ### OpenNebula Node (or Bridge Node)
 
 * StorPool initiator driver (storpool_block)
-* StorPool CLI installed, authorization token and access to the StorPool API network
-* If the node is used as Bridge Node - the OpenNebula admin account `oneadmin` must be member of the 'disk' system group to have access to the StorPool block device during image create/import operations.
+* Access to the StorPool API network and authorization token
+* If the node is used as a Bridge Node - the OpenNebula admin account `oneadmin` must be member of the 'disk' system group to have access to the StorPool block device during image create/import operations.
 * If it is only Bridge Node - it must be configured as Host in open nebula but configured to not run VMs.
 * The Bridge node must have qemu-img available - used by the addon during imports to convert various source image formats to StorPool backed RAW images.
 * (Recommended) Installed `qemu-kvm-ev` package from `centos-release-qemu-ev` reposytory
@@ -94,7 +94,8 @@ If you are upgrading the addon please read the [Upgrade notes](#upgrade-notes) f
 
 ```bash
 # on the front-end
-yum -y install --enablerepo=epel patch git jq lz4 npm
+yum -y install --enablerepo=epel patch git jq lz4 npm python-pip
+pip install -U storpool
 ```
 
 #### node dependencies
@@ -102,7 +103,8 @@ yum -y install --enablerepo=epel patch git jq lz4 npm
  :grey_exclamation:*use when adding new hosts too*:grey_exclamation:
 
 ```bash
-yum -y install --enablerepo=epel jq lz4 python-lxml
+yum -y install --enablerepo=epel jq lz4 python-lxml python-pip
+pip install -U storpool
 ```
 
 ### Get the addon from github
@@ -134,6 +136,9 @@ cp -a ~/addon-storpool/datastore/storpool /var/lib/one/remotes/datastore/
 
 # copy xpath_multi.py
 cp ~/addon-storpool/datastore/xpath_multi.py  /var/lib/one/remotes/datastore/
+
+# copy xpath-sp.rb
+cp ~/addon-storpool/datastore/xpath-sp.py  /var/lib/one/remotes/datastore/
 
 # fix ownership
 chown -R oneadmin.oneadmin /var/lib/one/remotes/datastore/storpool /var/lib/one/remotes/datastore/xpath_multi.py
@@ -463,10 +468,17 @@ Please follow the  [configuration tips](docs/configuration_tips.md) for suggesti
 
 ## Upgrade notes
 
+* addon-storpool switched from StorPool CLI to Python bindings for communication with StorPool API. To install the Python bindings issue on the Front-end and all Hosts the following command:
+```bash
+yum -y install python-pip
+pip install -U storpool
+```
+
 * It is highly recommended to install `qemu-kvm-ev` package from `centos-release-kvm-ev` reposytory.
 
 * The suggested upgrade procedure is as follow
 
+    0. Install StorPool's API Pyhon bindings on the FE and the Hosts
     1. Stop all opennebula services
     2. Upgrade the opennebula packages. But do not reconfigure anything yet
     3. Upgrade the addon (checkout/clone latest from github and run install.sh)
