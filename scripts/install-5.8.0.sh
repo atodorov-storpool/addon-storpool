@@ -249,8 +249,13 @@ cp -vf hooks/net_fw_hook "${ONE_VAR}/remotes/hooks/"
 if [ -n "$EXTRA" ]; then
     echo "*** EXTRA: patch MADs ..."
     pushd "$ONE_LIB"
-        do_patch "$CWD/patches/mads/${ONE_VER}/one_hm.rb.patch" "backup"
-        do_patch "$CWD/patches/mads/${ONE_VER}/one_tm.rb.patch" "backup"
+        while read -u 4 pfile; do
+            do_patch "$pfile" "backup"
+        done 4< <(find "$CWD/patches/mads/${ONE_VER}" -name '*.patch' 2>/dev/null)
+    	echo "*** EXTRA: patch ruby ..."
+        while read -u 4 pfile; do
+            do_patch "$pfile" "backup"
+        done 4< <(find "$CWD/patches/ruby/${ONE_VER}" -name '*.patch' 2>/dev/null)
     popd
     echo "*** EXTRA: patch vnm_mad ..."
     pushd "$ONE_VAR"
