@@ -265,6 +265,9 @@ if ! grep -q 'deploy=deploy-tweaks' /etc/one/oned.conf; then
     echo "!!! Please enable deploy-tweaks in the VM_MAD configuration for proper working of volatile disks"
 fi
 
+echo "*** Installing storpool_req"
+pip install -U storpool
+
 echo "*** Please sync hosts (onehost sync --force)"
 
 echo "*** Please restart opennebula${end_msg:+ and $end_msg} service${end_msg:+s}"
