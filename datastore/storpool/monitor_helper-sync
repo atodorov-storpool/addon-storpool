@@ -344,7 +344,7 @@ for i in ${!DS_ID_ARRAY[@]}; do
 	# create/update the template in StorPool
 	# or update ONE datastore
 	
-	tmp="$(storpool_req VolumeTemplatesList 2>"$tmpDir/error.log"| jq -r "map(select(.name==\"$template_name\"))|.[]|[.replication,.placeAll,.placeTail,.iops,.bw,.placeHead]|@csv")" #"
+	tmp="$(storpool_req VolumeTemplatesList 2>"$tmpDir/error.log"| jq -r --arg name "$template_name" '.[]|select(.name==$name)|[.replication,.placeAll,.placeTail,.iops,.bw,.placeHead]|@csv')" #"
 	ret=$?
 	if [ -z "$tmp" ]; then
 		if [ $ret -ne 0 ] && [ -s "$tmpDir/error.log" ]; then

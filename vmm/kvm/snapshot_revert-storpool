@@ -87,7 +87,7 @@ EOF
     declare -a tmpVolumes snapList
     while read -u 4 snap; do
         snapList+=("$snap")
-    done 4< <(storpoolRetry SnapshotsList | jq -r --arg snp "$SNAP_ID" 'map(select(.name|contains($snp)))[]|[.name][]')
+    done 4< <(storpoolRetry SnapshotsList | jq -r --arg snp "$SNAP_ID" '.[]|select(.name|contains($snp))|[.name][]')
     splog "snapList: ${snapList[@]}"
     for snap in ${snapList[@]}; do
         tb=$(date +%s%N)

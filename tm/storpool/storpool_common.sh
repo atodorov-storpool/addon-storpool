@@ -477,14 +477,14 @@ function storpoolVolumeStartswith()
     local _SP_VOL="$1" vName
     while read -u 5 vName; do
         echo "${vName//\"/}"
-    done 5< <(storpoolRetry VolumesList | jq -r "map(select(.name|contains(\"${_SP_VOL}\")))|.[]|[.name]|@csv")
+    done 5< <(storpoolRetry VolumesList | jq -r --arg name "$_SP_VOL" '.[]|select(.name|startswith($name))|[.name]|@csv')
 }
 
 function storpoolVolumeSnapshotsDelete()
 {
     while read -u 5 name; do
         storpoolSnapshotDelete "${name//\"/}"
-    done 5< <(storpoolRetry SnapshotsList | jq -r "map(select(.name|contains(\"$1\")))|.[]|[.name]|@csv")
+    done 5< <(storpoolRetry SnapshotsList | jq -r --arg name "$1" '.[]|select(.name|contains($name))|[.name]|@csv')
 }
 
 function storpoolVolumeDelete()
@@ -601,7 +601,7 @@ function storpoolVolumeDetach()
                 fi
                 ;;
         esac
-    done 5< <(storpoolRetry AttachmentsList | jq -r "map(select(.volume==\"${_SP_VOL}\"))|.[]|[.volume,.client,.snapshot]|@csv")
+    done 5< <(storpoolRetry AttachmentsList | jq -r --arg name "${_SP_VOL}" '.[]|select(.volume==$name)|[.volume,.client,.snapshot]|@csv')
     if [ -n "$clients" ]; then
         json="{\"$type\":\"${_SP_VOL}\",\"detach\":[$clients]${_FORCE:+,\"force\":true}}"
     fi
