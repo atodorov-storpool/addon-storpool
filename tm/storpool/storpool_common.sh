@@ -407,12 +407,12 @@ function storpoolRetry() {
             fi
         fi
         if boolTrue "_SOFT_FAIL"; then
-            splog "storpool $* SOFT_FAIL"
+            splog "storpoolRetry $* SOFT_FAIL"
             break
         fi
         t=$((t - 1))
         if [ "$t" -lt 1 ]; then
-            splog "storpool $* FAILED ($t::$ret)"
+            splog "storpoolRetry FAILED ($t::$ret)"
             exit $ret
         fi
         sleep .1
