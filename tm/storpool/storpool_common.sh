@@ -474,17 +474,45 @@ function storpoolVolumeCreate()
 
 function storpoolVolumeStartswith()
 {
-    local _SP_VOL="$1" vName
+    local _SP_VOL="$1" vName=
     while read -u 5 vName; do
-        echo "${vName//\"/}"
-    done 5< <(storpoolRetry VolumesList | jq -r --arg name "$_SP_VOL" '.[]|select(.name|startswith($name))|[.name]|@csv')
+        echo "$vName"
+    done 5< <(storpoolRetry VolumesList | jq -r --arg name "$_SP_VOL" '.[]|select(.name|startswith($name))|.name')
 }
 
 function storpoolVolumeSnapshotsDelete()
 {
-    while read -u 5 name; do
-        storpoolSnapshotDelete "${name//\"/}"
-    done 5< <(storpoolRetry SnapshotsList | jq -r --arg name "$1" '.[]|select(.name|contains($name))|[.name]|@csv')
+	local sName=
+    while read -u 5 sName; do
+        storpoolSnapshotDelete "$sName"
+    done 5< <(storpoolRetry SnapshotsList | jq -r --arg name "$1" '.[]|select(.name|contains($name))|.name')
+}
+
+function tagsToJson()
+{
+    local TAGS_IN="$1"
+    parseTags_Arr=(${TAGS_IN})
+    local TAGS_OUT="" TAG=
+    for TAG in "${parseTags_Arr[@]}"; do
+		[ "${TAG/=/}" != "$TAG" ] || continue
+        [ -z "$TAGS_OUT" ] || TAGS_OUT+=","
+        TAGS_OUT+="\"${TAG%%=*}\":\"${TAG#*=}\""
+    done
+	splog "tagsToJson($TAGS_IN):$TAGS_OUT"
+	echo "$TAGS_OUT"
+}
+
+function storpoolVolumeRemoteBackup()
+{
+    local _SP_VOL="$1" _REMOTE_LOCATION="$2"
+	splog "storpoolVolumeRemoteBackup($_SP_VOL,$_REMOTE_LOCATION)"
+    if [ -n "${_REMOTE_LOCATION}" ]; then
+        local tags="$(tagsToJson "${_REMOTE_LOCATION#*:}")"
+        _REMOTE_LOCATION="${_REMOTE_LOCATION%%:*}"
+        local json="\"volume\":\"$_SP_VOL\",\"location\":\"$_REMOTE_LOCATION\""
+		json+=",\"tags\":{$tags}"
+		storpoolRetry --json "{$json}" -P VolumeBackup >/dev/null
+	fi
 }
 
 function storpoolVolumeDelete()
@@ -494,16 +522,13 @@ function storpoolVolumeDelete()
 
         storpoolVolumeDetach "$_SP_VOL" "$_FORCE" "" "all"
 
-        if [ -n "${_REMOTE_LOCATION}" ]; then
-			local _REMOTE_LOCATION_ARGS="${_REMOTE_LOCATION#*:}"
-			_REMOTE_LOCATION="${_REMOTE_LOCATION%:*}"
-			storpoolRetry volume "$_SP_VOL" backup "$_REMOTE_LOCATION" ${_REMOTE_LOCATION_ARGS} >/dev/null
-			local RET=$?
-			if [ $RET -ne 0 ]; then
-				storpoolVolumeRename "${_SP_VOL}" "${_SP_VOL}-"$(date +%s) "tag del=y" >/dev/null
-				return $?
-			fi
+        storpoolVolumeRemoteBackup "$_SP_VOL" "$_REMOTE_LOCATION"
+		local RET=$?
+		if [ $RET -ne 0 ]; then
+	        storpoolVolumeRename "${_SP_VOL}" "${_SP_VOL}-$(date +%s)" "" "$(tagsToJson "${_REMOTE_LOCATION#*:}")" >/dev/null
+		    return $?
 		fi
+
         storpoolRetry -P VolumeDelete "$_SP_VOL" >/dev/null
     else
         splog "volume $_SP_VOL not found "
@@ -517,7 +542,7 @@ function storpoolVolumeRename()
 {
     local json="\"rename\":\"$2\""
     [ -z "$3" ] || json+=",\"template\":\"$3\""
-    [ -z "$4" ] || json+=",\"tags\":{\"${VM_TAG:-nvm}\":\"$4\"}"
+    [ -z "$4" ] || json+=",\"tags\":{$4}"
     storpoolRetry --json "{$json}" -P VolumeUpdate "$1" >/dev/null
 }
 
