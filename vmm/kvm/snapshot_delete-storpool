@@ -50,8 +50,8 @@ if boolTrue "VMSNAPSHOT_OVERRIDE"; then
 			fi
 			continue
 		fi
-                storpoolSnapshotDelete "$snap"
-	done 4< <(storpoolRetry SnapshotsList | jq -r --arg snp "$SNAP_ID" '.[]|select(.name|contains($snp))|[.name][]')
+        storpoolSnapshotDelete "$snap"
+	done 4< <(storpoolRetry SnapshotsList | jq -r --arg snp "$SNAP_ID" '.[]|select(.name|contains($snp))|.name')
     splog "END VM_ID=$VM_ID VMHOST=$VMHOST SNAP_ID=$SNAP_ID"
 	exit 0
 fi
