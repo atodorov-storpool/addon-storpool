@@ -330,7 +330,6 @@ EOF
          done
          splog "END $VM_ID DISK_ID:$DISK_ID [SYSTEM_DS]"
      fi
-     splog "END $VM_ID [SYSTEM_DS]"
      exit 0
 else
     if [ -n "$ATTACH_ONLY" ]; then
