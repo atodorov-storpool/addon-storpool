@@ -578,9 +578,9 @@ function storpoolVolumeAttach()
 function storpoolVolumeDetach()
 {
     local _SP_VOL="$1" _FORCE="$2" _SP_HOST="${3:-$(hostname)}" _DETACH_ALL="$4" _SOFT_FAIL="$5" _VOLUMES_GROUP="$6"
-    local _SP_CLIENT volume client
+    local _SP_CLIENT= volume= client= json=
     if boolTrue "DEBUG_storpoolVolumeDetach"; then
-        splog "storpoolVolumeDetach(_SP_VOL=$1 _FORCE=$2 _SP_HOST=$3 _DETACH_ALL=$4 _SOFT_FAIL=$5 _VOLUMES_GROUP=$6)"
+        splog "storpoolVolumeDetach(_SP_VOL=$_SP_VOL _FORCE=$_VORCE _SP_HOST=$_SP_HOST _DETACH_ALL=$_DETACH_ALL _SOFT_FAIL=$_SOFT_FAIL _VOLUMES_GROUP=$_VOLUMES_GROUP)"
     fi
     if [ "$_DETACH_ALL" = "all" ] && [ -z "$_VOLUMES_GROUP" ] ; then
         _SP_CLIENT="all"
@@ -614,6 +614,9 @@ function storpoolVolumeDetach()
         fi
         volume="${volume//\"/}"
         client="${client//\"/}"
+        if boolTrue "DEBUG_storpoolVolumeDetach"; then
+			splog "volume:$volume client:$client snapshot:$snapshot type:$type _SP_CLIENT:$_SP_CLIENT"
+		fi
         case "$_SP_CLIENT" in
             all)
                 json="{\"$type\":\"$volume\",\"detach\":\"all\"${_FORCE:+,\"force\":true}}"
