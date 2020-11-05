@@ -335,7 +335,7 @@ EOF
                 else
                     storpoolVolumeAttach "$SP_VOL" "$DST_HOST"
 
-                    storpoolVolumeTag "$SP_VOL" "$VM_ID"
+                    storpoolVolumeTag "$SP_VOL" "${ONE_PX}-$VM_ID"
 
                     if boolTrue "DO_SYMLINK"; then
                         oneSymlink "$DST_HOST" "$SP_LINK" "$DST_PATH"
@@ -407,7 +407,7 @@ SP_LINK="/dev/storpool/$SP_VOL"
 
 storpoolVolumeAttach "$SP_VOL" "$DST_HOST" "$SP_MODE"
 
-storpoolVolumeTag "$SP_VOL" "$VM_ID"
+storpoolVolumeTag "${ONE_PX}-$SP_VOL" "$VM_ID"
 
 if boolTrue "DO_SYMLINK"; then
     # Get SYSTEM datastore info

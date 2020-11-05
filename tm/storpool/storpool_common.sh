@@ -1932,6 +1932,7 @@ storpoolVmVolumes()
 {
     vmVolumes=
     while read -u 7 vol; do
+        [ -z "${vol%${ONE_PX}*}" ] || continue
         vmVolumes+="$vol "
     done 7< <(storpoolRetry -j volume list |\
         jq -r --arg t "$1" --arg v "$2" '.data[]|select(.tags[$t]==$v)|.name'
@@ -1952,7 +1953,7 @@ forceDetachOther()
         vmVolumes="$VOLUME"
     else
         if boolTrue "FORCE_DETACH_BY_TAG"; then
-            storpoolVmVolumes "$VM_TAG" "$VM_ID"
+            storpoolVmVolumes "$VM_TAG" "${ONE_PX}-$VM_ID"
         else
             oneVmVolumes "$VM_ID"
         fi
